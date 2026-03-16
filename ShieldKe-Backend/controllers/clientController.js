@@ -1,58 +1,62 @@
-// controllers/clientController.js
-const ClientProfile = require('../models/ClientProfile');
+const ClientProfile = require("../models/ClientProfile");
 
-// @desc    Create or update client profile
-// @route   POST /api/client/profile
-// @access  Private
+// Create or update client profile
 const createClientProfile = async (req, res) => {
   try {
-    const { phone, location, interests } = req.body;
+    const { phone, location, bio } = req.body;
 
-    let profile = await ClientProfile.findOne({ user: req.user.id });
-
-    if (profile) {
-      // Update
-      profile.phone = phone;
-      profile.location = location;
-      profile.interests = interests;
-
-      await profile.save();
-      return res.json({ message: 'Profile updated', profile });
-    }
-
-    // Create new profile
-    profile = new ClientProfile({
-      user: req.user.id,
-      phone,
-      location,
-      interests,
+    const existingProfile = await ClientProfile.findOne({
+      user: req.user._id,
     });
 
-    await profile.save();
-    res.status(201).json({ message: 'Profile created', profile });
-
-  } catch (err) {
-    console.error('Error creating/updating client profile:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// @desc    Get logged-in client profile
-// @route   GET /api/client/profile
-// @access  Private
-const getClientProfile = async (req, res) => {
-  try {
-    const profile = await ClientProfile.findOne({ user: req.user.id }).populate('user', ['name', 'email', 'role']);
-
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+    if (existingProfile) {
+      const updated = await ClientProfile.findOneAndUpdate(
+        { user: req.user._id },
+        { phone, location, bio },
+        { new: true }
+      );
+      return res.json({
+        success: true,
+        message: "Client profile updated",
+        profile: updated,
+      });
     }
 
-    res.json(profile);
-  } catch (err) {
-    console.error('Error fetching client profile:', err.message);
-    res.status(500).json({ error: 'Server error' });
+    const profile = await ClientProfile.create({
+      user: req.user._id,
+      phone,
+      location,
+      bio,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Client profile created",
+      profile,
+    });
+  } catch (error) {
+    console.error("Create Client Profile Error:", error.message);
+    res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-module.exports = { createClientProfile, getClientProfile };
+// Get logged-in client profile
+const getClientProfile = async (req, res) => {
+  const profile = await ClientProfile.findOne({
+    user: req.user._id,
+  }).populate("user", "name email role");
+
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      error: "Client profile not found",
+    });
+  }
+
+  res.json({ success: true, profile });
+};
+
+module.exports = {
+  createClientProfile,
+  getClientProfile,
+};

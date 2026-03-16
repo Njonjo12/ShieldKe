@@ -1,22 +1,43 @@
-// routes/lawyer.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const verifyToken = require('../middleware/authMiddleware');
-const { createLawyerProfile, getLawyerProfile } = require('../controllers/lawyerController');
-const protect = require('../middleware/authMiddleware');
+const User = require("../models/User");
 
-// @route   POST /api/lawyer/profile
-// @desc    Create or update lawyer profile
-// @access  Private
-router.post('/profile', verifyToken, createLawyerProfile);
+/*
+  GET ALL LAWYERS
+*/
+router.get("/", async (req, res) => {
+  try {
+    const lawyers = await User.find({ role: "lawyer" })
+      .select("-password");
 
-// @route   GET /api/lawyer/profile
-// @desc    Get logged-in lawyer profile
-// @access  Private
-router.get('/profile', verifyToken, getLawyerProfile);
+    res.json(lawyers);
 
-// ✅ Wrap routes with protect
-router.post('/profile', protect, createLawyerProfile);
-router.get('/profile', protect, getLawyerProfile);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/*
+  GET SINGLE LAWYER BY ID
+*/
+router.get("/:id", async (req, res) => {
+  try {
+    const lawyer = await User.findOne({
+      _id: req.params.id,
+      role: "lawyer"
+    }).select("-password");
+
+    if (!lawyer) {
+      return res.status(404).json({ message: "Lawyer not found" });
+    }
+
+    res.json(lawyer);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 module.exports = router;

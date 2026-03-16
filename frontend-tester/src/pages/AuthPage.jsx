@@ -1,36 +1,27 @@
-import { useState } from "react";
+export const getUser = () => {
+  const raw = localStorage.getItem("user");
 
-export default function AuthPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [result, setResult] = useState("");
+  if (!raw || raw === "undefined") return null;
 
-  const handleRegister = async () => {
-    const res = await fetch("http://localhost:5000/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    setResult(await res.text());
-  };
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Failed to parse user:", err);
+    return null;
+  }
+};
 
-  const handleLogin = async () => {
-    const res = await fetch("http://localhost:5000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    setResult(await res.text());
-  };
+export const getToken = () => {
+  const token = localStorage.getItem("token");
+  return token && token !== "undefined" ? token : null;
+};
 
-  return (
-    <div>
-      <h2>Auth Test</h2>
-      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button onClick={handleRegister}>Register</button>
-      <button onClick={handleLogin}>Login</button>
-      <pre>{result}</pre>
-    </div>
-  );
-}
+export const saveAuth = (user, token) => {
+  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("token", token);
+};
+
+export const logout = () => {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+};

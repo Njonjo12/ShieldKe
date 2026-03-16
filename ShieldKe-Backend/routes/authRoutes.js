@@ -1,22 +1,41 @@
-// routes/auth.js
-const express = require('express');
+
+const express = require("express");
 const router = express.Router();
-const verifyToken = require('../middleware/authMiddleware');
-const { register, login, getMe } = require('../controllers/authController');
 
-// @route   POST /api/auth/register
-// @desc    Register a new user
-// @access  Public
-router.post('/register', register);
+const { protect } = require("../middleware/authMiddleware");
 
-// @route   POST /api/auth/login
-// @desc    Login user & get token
-// @access  Public
-router.post('/login', login);
+const {
+  registerUser,
+  loginUser,
+  getMe
+} = require("../controllers/authController");
 
-// @route   GET /api/auth/me
-// @desc    Get logged-in user info
-// @access  Private
-router.get('/me', verifyToken, getMe);
+const User = require("../models/User"); // <-- ADD THIS
+
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.get("/me", protect, getMe);
+
+
+/* GET ALL LAWYERS */
+
+router.get("/lawyers", async (req, res) => {
+
+  try {
+
+    const lawyers = await User.find({ role: "lawyer" }).select("-password");
+
+    res.json(lawyers);
+
+  } catch (err) {
+
+    console.error("Fetch lawyers error:", err);
+
+    res.status(500).json({ error: "Failed to fetch lawyers" });
+
+  }
+
+});
+
 
 module.exports = router;

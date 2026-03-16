@@ -1,23 +1,67 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import LawyerProfileForm from "./components/LawyerProfileForm";
-import ClientProfileForm from "./components/ClientProfileForm";
+import { Routes,Route,Navigate } from "react-router-dom";
 
-function App() {
-  return (
-    <Router>
-      <nav>
-        <ul>
-          <li><Link to="/lawyer-profile">Lawyer Profile</Link></li>
-          <li><Link to="/client-profile">Client Profile</Link></li>
-        </ul>
-      </nav>
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
-      <Routes>
-        <Route path="/lawyer-profile" element={<LawyerProfileForm />} />
-        <Route path="/client-profile" element={<ClientProfileForm />} />
-      </Routes>
-    </Router>
-  );
+import ClientDashboard from "./pages/ClientDashboard";
+import LawyerDashboard from "./pages/LawyerDashboard";
+
+import LawyersList from "./pages/LawyersList";
+import Consultations from "./pages/Consultations";
+
+import ProtectedRoute from "./components/ProtectedRoute";
+
+export default function App(){
+
+  return(
+
+    <Routes>
+
+      <Route path="/" element={<Navigate to="/login"/>}/>
+
+      <Route path="/login" element={<Login/>}/>
+      <Route path="/register" element={<Register/>}/>
+
+      <Route
+        path="/client"
+        element={
+          <ProtectedRoute role="client">
+            <ClientDashboard/>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/lawyers"
+        element={
+          <ProtectedRoute role="client">
+            <LawyersList/>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/consultations"
+        element={
+          <ProtectedRoute>
+            <Consultations/>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/lawyer"
+        element={
+          <ProtectedRoute role="lawyer">
+            <LawyerDashboard/>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/login"/>}/>
+
+    </Routes>
+
+  )
+
 }
-
-export default App;

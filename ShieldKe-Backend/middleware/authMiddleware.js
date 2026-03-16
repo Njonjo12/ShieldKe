@@ -1,43 +1,45 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-/**
- * Protect middleware
- * - Checks for a valid JWT in Authorization header
- * - Attaches decoded user to req.user
- */
-const protect = async (req, res, next) => {
+// 🔐 Protect routes (verify JWT)
+exports.protect = async (req, res, next) => {
   let token;
 
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({ message: "Not authorized, no token" });
+  }
+
   try {
-    // Check header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1]; // "Bearer <token>"
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      if (!process.env.JWT_SECRET) {
-        console.error('JWT_SECRET is missing in environment variables');
-        return res.status(500).json({ message: 'Server misconfigured' });
-      }
+    req.user = await User.findById(decoded.id).select("-password");
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Attach user (without password)
-      req.user = await User.findById(decoded.id).select('-password');
-
-      if (!req.user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
-
-      return next();
+    if (!req.user) {
+      return res.status(401).json({ message: "User not found" });
     }
 
-    // No token
-    return res.status(401).json({ message: 'Not authorized, no token provided' });
-  } catch (err) {
-    console.error('Auth middleware error:', err.message);
-    return res.status(401).json({ message: 'Not authorized, invalid token' });
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
 
-module.exports = protect;
+// 🔐 Role restriction middleware
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Access denied: insufficient permissions"
+      });
+    }
+    next();
+  };
+};
+
