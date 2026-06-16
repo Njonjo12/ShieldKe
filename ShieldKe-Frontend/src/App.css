@@ -1,0 +1,19 @@
+/* ==========================================
+   SHIELDKE — APP.CSS
+   Top-level app shell resets.
+   All design tokens live in global.css
+========================================== */
+
+/* Ensure the React root fills viewport */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove default browser button chrome
+   (component-specific styles in their own files) */
+button { font-family: inherit; }
+
+/* Smooth global transitions on colour-scheme changes */
+* { transition: background-color 0.1s ease, border-color 0.1s ease; }

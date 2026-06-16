@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================
+   SHIELDKE DESIGN TOKENS
+============================================= */
+:root {
+  --navy:        #0B1F3A;
+  --navy-light:  #132843;
+  --navy-card:   #0F2340;
+  --navy-hover:  #162E4D;
+
+  --green:       #006B3F;
+  --green-light: #00A86B;
+  --green-glow:  rgba(0, 168, 107, 0.14);
+
+  --gold:        #C9961A;
+  --gold-light:  #F0BE4A;
+
+  --danger:      #B91C1C;
+  --danger-soft: rgba(185, 28, 28, 0.12);
+
+  --amber:       #D97706;
+  --amber-soft:  rgba(217, 119, 6, 0.12);
+
+  --text:        #F0F4F8;
+  --text-muted:  #7D95B1;
+  --text-soft:   #A8BECC;
+
+  --bg:          #07131F;
+  --surface:     #0B1F3A;
+  --surface-2:   #0F2340;
+  --border:      rgba(255, 255, 255, 0.07);
+
+  --radius-xl:   28px;
+  --radius-lg:   20px;
+  --radius-md:   14px;
+  --radius-sm:   10px;
+  --radius-pill: 999px;
+
+  --transition:  0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --grad-green:  linear-gradient(135deg, #006B3F, #00A86B);
+  --grad-navy:   linear-gradient(135deg, #0B1F3A, #132843);
+  --grad-gold:   linear-gradient(135deg, #C9961A, #F0BE4A);
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: #07131F;
+  color: #F0F4F8;
+  -webkit-font-smoothing: antialiased;
+}

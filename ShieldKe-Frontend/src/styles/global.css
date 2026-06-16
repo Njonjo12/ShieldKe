@@ -1,0 +1,211 @@
+/* ==========================================
+   SHIELDKE — GLOBAL COMPONENT STYLES
+   CSS variables are defined in index.css
+========================================== */
+
+/* ==========================================
+   LAYOUT
+========================================== */
+
+.container {
+  width: 100%;
+  max-width: 1380px;
+  margin: auto;
+  padding: 44px 40px;
+}
+
+/* ==========================================
+   TYPOGRAPHY
+========================================== */
+
+h1 { font-size: 46px; font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; }
+h2 { font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
+h3 { font-size: 20px; font-weight: 700; }
+p  { color: var(--text-soft); line-height: 1.8; }
+
+/* ==========================================
+   BUTTONS
+========================================== */
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--grad-green);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 14px 26px;
+  border-radius: var(--radius-md);
+  min-height: 52px;
+  transition: var(--transition);
+  letter-spacing: 0.01em;
+  font-family: inherit;
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 107, 63, 0.32);
+  opacity: 1;
+}
+
+.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  min-height: 52px;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.secondary-btn:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.18);
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   CARDS
+========================================== */
+
+.card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 30px;
+  transition: var(--transition);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 168, 107, 0.22);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+}
+
+.card-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.card-text {
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin-bottom: 24px;
+}
+
+/* ==========================================
+   INPUTS
+========================================== */
+
+.input,
+textarea.input,
+select.input {
+  width: 100%;
+  padding: 15px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  transition: var(--transition);
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+
+.input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--green-light);
+  box-shadow: 0 0 0 4px var(--green-glow);
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--text-muted); }
+
+/* ==========================================
+   STATUS BADGES
+========================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badge.verified {
+  background: rgba(0, 168, 107, 0.14);
+  color: #34D399;
+  border: 1px solid rgba(0, 168, 107, 0.25);
+}
+
+.badge.pending {
+  background: rgba(217, 119, 6, 0.14);
+  color: #FBBF24;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.badge.rejected {
+  background: rgba(185, 28, 28, 0.14);
+  color: #F87171;
+  border: 1px solid rgba(185, 28, 28, 0.25);
+}
+
+.badge.accepted {
+  background: rgba(0, 168, 107, 0.14);
+  color: #34D399;
+  border: 1px solid rgba(0, 168, 107, 0.25);
+}
+
+/* ==========================================
+   EMPTY STATE
+========================================== */
+
+.empty-state {
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--text-muted);
+}
+
+.empty-state p { font-size: 16px; margin-top: 10px; }
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width: 1024px) {
+  .container { padding: 32px 28px; }
+  h1 { font-size: 38px; }
+  h2 { font-size: 26px; }
+}
+
+@media (max-width: 768px) {
+  .container { padding: 24px 20px; }
+  h1 { font-size: 32px; }
+  .primary-btn, .secondary-btn { width: 100%; }
+  .card { padding: 22px; border-radius: var(--radius-lg); }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 18px; }
+  h1 { font-size: 28px; }
+  .card { padding: 18px; }
+}
