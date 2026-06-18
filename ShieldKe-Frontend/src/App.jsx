@@ -31,12 +31,17 @@ import NotificationsPage from "./pages/Notificationspage";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AdvocateAgreement from "./pages/AdvocateAgreement";
+import GlobalCallManager from "./components/GlobalCallManager";
 
 export default function App() {
 
   return (
 
-    <Routes>
+    <>
+
+      <GlobalCallManager />
+
+      <Routes>
 
       {/* ========================================
           PUBLIC ROUTES
@@ -215,6 +220,8 @@ export default function App() {
       />
 
     </Routes>
+
+    </>
 
   );
 

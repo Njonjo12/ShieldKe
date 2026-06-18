@@ -9,7 +9,8 @@ import {
   FiStar, FiBell
 } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_URL = API_URL.replace("/api", "");
 
 export default function ClientDashboard() {
 
@@ -171,6 +172,11 @@ export default function ClientDashboard() {
                     <div style={{ fontSize: 12, color: "#6B7280", marginTop: 3 }}>
                       {c.lawyer?.name || "Lawyer"}
                     </div>
+                    {c.status === "rejected" && c.rejectionReason && (
+                      <div style={{ fontSize: 11, color: "#F87171", marginTop: 3, fontStyle: "italic", maxWidth: isMobile ? 160 : 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        "{c.rejectionReason}"
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     <span style={{
@@ -212,7 +218,7 @@ export default function ClientDashboard() {
                   <img
                     src={
                       l.profilePhoto
-                        ? `http://localhost:5000/${l.profilePhoto}`
+                        ? `${SERVER_URL}/${l.profilePhoto}`
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(l.name)}&background=EFF6FF&color=1D4ED8&size=80`
                     }
                     alt={l.name}

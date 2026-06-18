@@ -19,6 +19,10 @@ const consultationSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "accepted", "rejected"],
       default: "pending"
+    },
+    rejectionReason: {
+      type: String,
+      default: ""
     }
   },
   { timestamps: true }

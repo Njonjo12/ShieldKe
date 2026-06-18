@@ -10,7 +10,7 @@ import {
   FiCheckCircle, FiAlertCircle, FiClock, FiBell,
 } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function LawyerDashboard() {
 
@@ -25,6 +25,8 @@ export default function LawyerDashboard() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [showAllRequests, setShowAllRequests] = useState(false);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectDraft, setRejectDraft] = useState("");
 
   /* ── FETCH USER ── */
   const fetchCurrentUser = async () => {
@@ -59,16 +61,23 @@ export default function LawyerDashboard() {
   useEffect(() => { fetchCurrentUser(); fetchConsultations(); }, []);
 
   /* ── UPDATE STATUS ── */
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (id, status, rejectionReason) => {
     try {
       const res = await fetch(`${API_URL}/consultations/${id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, rejectionReason })
       });
       const updated = await res.json();
       setConsultations(prev => prev.map(c => c._id === id ? updated : c));
+      setRejectingId(null);
+      setRejectDraft("");
     } catch (e) { console.error(e); }
+  };
+
+  const confirmReject = (id) => {
+    if (!rejectDraft.trim()) return;
+    updateStatus(id, "rejected", rejectDraft.trim());
   };
 
   /* ── BADGE ── */
@@ -201,26 +210,57 @@ export default function LawyerDashboard() {
 
                 {(showAllRequests ? consultations : consultations.slice(0,4)).map((c) => {
                   const st = statusStyle(c.status);
+                  const isRejectingThis = rejectingId === c._id;
                   return (
-                    <div key={c._id}
-                      onClick={() => setSelectedConsultation(c)}
-                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid #F3F4F6", cursor:"pointer" }}
-                    >
-                      <div style={{ flex:1, minWidth:0, marginRight:10 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:"#0B1F3A", marginBottom:2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.message?.slice(0,34) || "Consultation"}</div>
-                        <div style={{ fontSize:12, color:"#6B7280" }}>{c.client?.name}</div>
+                    <div key={c._id} style={{ borderBottom:"1px solid #F3F4F6" }}>
+                      <div
+                        onClick={() => !isRejectingThis && setSelectedConsultation(c)}
+                        style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 0", cursor: isRejectingThis ? "default" : "pointer" }}
+                      >
+                        <div style={{ flex:1, minWidth:0, marginRight:10 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:"#0B1F3A", marginBottom:2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.message?.slice(0,34) || "Consultation"}</div>
+                          <div style={{ fontSize:12, color:"#6B7280" }}>{c.client?.name}</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink: 0 }}>
+                          <span style={{ padding:"4px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:st.bg, color:st.color, border:st.border }}>
+                            {c.status === "pending" ? "High" : c.status === "accepted" ? "Medium" : "Low"}
+                          </span>
+                          {c.status === "pending" && !isRejectingThis && (
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button onClick={e=>{e.stopPropagation();updateStatus(c._id,"accepted");}} style={{ padding:"5px 11px", borderRadius:6, background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.25)", color:"#10B981", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Accept</button>
+                              <button onClick={e=>{e.stopPropagation(); setRejectingId(c._id); setRejectDraft("");}} style={{ padding:"5px 11px", borderRadius:6, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", color:"#F87171", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Reject</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink: 0 }}>
-                        <span style={{ padding:"4px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:st.bg, color:st.color, border:st.border }}>
-                          {c.status === "pending" ? "High" : c.status === "accepted" ? "Medium" : "Low"}
-                        </span>
-                        {c.status === "pending" && !isMobile && (
-                          <div style={{ display:"flex", gap:6 }}>
-                            <button onClick={e=>{e.stopPropagation();updateStatus(c._id,"accepted");}} style={{ padding:"5px 11px", borderRadius:6, background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.25)", color:"#10B981", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Accept</button>
-                            <button onClick={e=>{e.stopPropagation();updateStatus(c._id,"rejected");}} style={{ padding:"5px 11px", borderRadius:6, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", color:"#F87171", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Reject</button>
+
+                      {/* INLINE REJECTION REASON */}
+                      {isRejectingThis && (
+                        <div style={{ padding: "0 0 14px" }} onClick={e => e.stopPropagation()}>
+                          <textarea
+                            autoFocus
+                            placeholder="Briefly tell the client why you're declining this request..."
+                            value={rejectDraft}
+                            onChange={e => setRejectDraft(e.target.value)}
+                            style={{ width:"100%", minHeight:64, padding:"10px 12px", borderRadius:8, border:"1px solid #FECACA", background:"#FEF2F2", color:"#374151", fontSize:13, fontFamily:"inherit", resize:"vertical", outline:"none", lineHeight:1.6, boxSizing:"border-box", marginBottom:8 }}
+                          />
+                          <div style={{ display:"flex", gap:8 }}>
+                            <button
+                              onClick={() => confirmReject(c._id)}
+                              disabled={!rejectDraft.trim()}
+                              style={{ padding:"7px 14px", borderRadius:7, background: rejectDraft.trim() ? "#EF4444" : "#FCA5A5", border:"none", color:"#fff", fontSize:12, fontWeight:700, cursor: rejectDraft.trim() ? "pointer" : "not-allowed", fontFamily:"inherit" }}
+                            >
+                              Confirm Rejection
+                            </button>
+                            <button
+                              onClick={() => { setRejectingId(null); setRejectDraft(""); }}
+                              style={{ padding:"7px 14px", borderRadius:7, background:"#fff", border:"1px solid #E5E7EB", color:"#6B7280", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}
+                            >
+                              Cancel
+                            </button>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

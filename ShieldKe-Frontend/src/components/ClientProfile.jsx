@@ -5,7 +5,9 @@ import ProfilePhotoUploader from "./ProfilePhotoUploader";
 import useIsMobile from "../hooks/useIsMobile";
 import { FiPhone, FiMapPin, FiCheckCircle } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api/clients/profile";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = `${API_BASE}/clients/profile`;
+const SERVER_URL = API_BASE.replace("/api", "");
 
 export default function ClientProfile() {
 
@@ -74,9 +76,9 @@ export default function ClientProfile() {
       {/* PROFILE BANNER */}
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", padding: isMobile ? "20px" : "28px 32px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: isMobile ? 16 : 24, flexWrap: isMobile ? "wrap" : "nowrap" }}>
         <ProfilePhotoUploader
-          currentPhotoUrl={user?.profilePhoto ? `http://localhost:5000/${user.profilePhoto}` : null}
+          currentPhotoUrl={user?.profilePhoto ? `${SERVER_URL}/${user.profilePhoto}` : null}
           userName={user?.name}
-          uploadUrl="http://localhost:5000/api/clients/profile/photo"
+          uploadUrl={`${API_BASE}/clients/profile/photo`}
           size={isMobile ? 64 : 80}
           ringColor="#3B82F6"
         />

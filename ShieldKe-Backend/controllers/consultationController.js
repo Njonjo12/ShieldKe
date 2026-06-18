@@ -52,6 +52,33 @@ const createConsultation = async (req, res) => {
 
     /*
     ========================================
+    BLOCK DUPLICATE ACTIVE REQUESTS
+    A client can only have one open (pending
+    or accepted) consultation with a given
+    lawyer at a time. A new request is only
+    allowed once the previous one was rejected.
+    ========================================
+    */
+
+    const existingActive = await Consultation.findOne({
+      client: req.user._id,
+      lawyer: lawyerId,
+      status: { $in: ["pending", "accepted"] }
+    });
+
+    if (existingActive) {
+
+      return res.status(409).json({
+        message:
+          existingActive.status === "pending"
+            ? "You already have a pending consultation request with this lawyer. Please wait for them to respond."
+            : "You already have an active consultation with this lawyer. You can request a new one once it ends."
+      });
+
+    }
+
+    /*
+    ========================================
     CREATE CONSULTATION
     ========================================
     */
@@ -212,7 +239,7 @@ const updateConsultationStatus =
 
   try {
 
-    const { status } = req.body;
+    const { status, rejectionReason } = req.body;
 
     const consultation =
       await Consultation.findById(
@@ -246,6 +273,10 @@ const updateConsultationStatus =
 
     consultation.status = status;
 
+    if (status === "rejected") {
+      consultation.rejectionReason = rejectionReason || "";
+    }
+
     await consultation.save();
 
     /*
@@ -267,7 +298,9 @@ const updateConsultationStatus =
           : "Consultation Declined",
         message: isAccepted
           ? `${req.user.name} accepted your consultation request`
-          : `${req.user.name} declined your consultation request`,
+          : rejectionReason
+            ? `${req.user.name} declined your request: "${rejectionReason}"`
+            : `${req.user.name} declined your consultation request`,
         type: "consultation",
       });
 

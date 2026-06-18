@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import useIsMobile from "../hooks/useIsMobile";
 import { FiShield, FiArrowRight, FiUser, FiMail, FiLock, FiBriefcase } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function Register() {
 

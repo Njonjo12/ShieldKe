@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { FiSearch, FiMapPin, FiBriefcase, FiCheckCircle, FiStar } from "react-icons/fi";
 import DashboardShell from "../components/DashboardShell";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_URL = API_URL.replace("/api", "");
 
 export default function LawyersList() {
 
@@ -131,7 +132,7 @@ export default function LawyersList() {
               <img
                 src={
                   lawyer.profilePhoto
-                    ? `http://localhost:5000/${lawyer.profilePhoto}`
+                    ? `${SERVER_URL}/${lawyer.profilePhoto}`
                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(lawyer.name)}&background=EFF6FF&color=1D4ED8&size=80`
                 }
                 alt={lawyer.name}

@@ -8,7 +8,7 @@ import {
 } from "react-icons/fi";
 import CallWindow from "./CallWindow";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const C = {
   bg:         "#F0F4F8",
@@ -51,10 +51,14 @@ export default function ChatWindow({ consultationId }) {
   const [messages, setMessages] = useState([]);
   const [sending,  setSending]  = useState(false);
 
-  /* ── CALL STATE ── */
+  /* ── CALL STATE ──
+     Incoming-call detection now lives in GlobalCallManager
+     (mounted once at the app root) so it works no matter what
+     page the user is on, not just while this chat is open.
+     This component only needs to handle OUTGOING calls — the
+     ones the current viewer starts by clicking the buttons below. */
   const [callActive,    setCallActive]    = useState(false);
   const [callType,      setCallType]      = useState(null);   // 'video' | 'audio'
-  const [incomingCall,  setIncomingCall]  = useState(null);   // { callType, offer, callerName }
 
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
@@ -81,14 +85,8 @@ export default function ChatWindow({ consultationId }) {
       setMessages(prev => [...prev, msg]);
     });
 
-    /* ── incoming call signal ── */
-    socket.on("incoming-call", ({ callType, offer, callerName }) => {
-      setIncomingCall({ callType, offer, callerName });
-    });
-
     return () => {
       socket.off("receiveMessage");
-      socket.off("incoming-call");
     };
   }, [consultationId]);
 
@@ -171,119 +169,34 @@ export default function ChatWindow({ consultationId }) {
     typeof msg.sender === "object" ? msg.sender._id : msg.sender;
 
   /* ══════════════════════════════════════
-     CALL HANDLERS
+     CALL HANDLERS (outgoing only — see note above)
   ══════════════════════════════════════ */
   const startCall = (type) => {
     setCallType(type);
     setCallActive(true);
-    setIncomingCall(null);
-  };
-
-  const acceptIncomingCall = () => {
-    setCallType(incomingCall.callType);
-    setCallActive(true);
-  };
-
-  const dismissIncoming = () => {
-    socket.emit("call-rejected", { consultationId });
-    setIncomingCall(null);
   };
 
   const handleCallEnd = () => {
     setCallActive(false);
     setCallType(null);
-    setIncomingCall(null);
   };
 
   return (
     <>
       {/* ══════════════════════════════════════
           CALL WINDOW (portal-style full-screen)
+          Outgoing calls only — see note above.
       ══════════════════════════════════════ */}
       <AnimatePresence>
         {callActive && (
           <CallWindow
             consultationId={consultationId}
             callType={callType}
-            isIncoming={!!incomingCall}
-            offer={incomingCall?.offer || null}
-            callerName={incomingCall?.callerName || ""}
+            isIncoming={false}
+            offer={null}
+            callerName=""
             onEnd={handleCallEnd}
           />
-        )}
-      </AnimatePresence>
-
-      {/* ══════════════════════════════════════
-          INCOMING CALL BANNER
-      ══════════════════════════════════════ */}
-      <AnimatePresence>
-        {incomingCall && !callActive && (
-          <motion.div
-            initial={{ y: -80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -80, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 22 }}
-            style={{
-              position: "fixed", top: 20, left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 9998,
-              background: "#0B1F3A",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 16,
-              padding: "16px 22px",
-              display: "flex", alignItems: "center", gap: 16,
-              boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
-              minWidth: 320,
-            }}
-          >
-            {/* pulse avatar */}
-            <div style={{ position: "relative" }}>
-              <motion.div
-                animate={{ scale: [1, 1.22, 1] }}
-                transition={{ duration: 1.2, repeat: Infinity }}
-              >
-                <Avatar name={incomingCall.callerName} size={44} color="#00A86B" />
-              </motion.div>
-              <div style={{ position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: "50%", background: "#22C55E", border: "2px solid #0B1F3A" }} />
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
-                {incomingCall.callerName}
-              </div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-                Incoming {incomingCall.callType === "video" ? "📹 video" : "📞 audio"} call
-              </div>
-            </div>
-
-            {/* ACCEPT */}
-            <button
-              onClick={acceptIncomingCall}
-              style={{
-                width: 40, height: 40, borderRadius: "50%",
-                background: "linear-gradient(135deg,#006B3F,#00A86B)",
-                border: "none", display: "flex", alignItems: "center",
-                justifyContent: "center", cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(0,107,63,0.4)",
-              }}
-            >
-              <FiPhone size={17} color="#fff" />
-            </button>
-
-            {/* DECLINE */}
-            <button
-              onClick={dismissIncoming}
-              style={{
-                width: 40, height: 40, borderRadius: "50%",
-                background: "rgba(239,68,68,0.15)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                display: "flex", alignItems: "center",
-                justifyContent: "center", cursor: "pointer",
-              }}
-            >
-              <FiX size={17} color="#F87171" />
-            </button>
-          </motion.div>
         )}
       </AnimatePresence>
 

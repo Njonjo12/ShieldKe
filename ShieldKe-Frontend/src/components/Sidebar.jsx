@@ -7,6 +7,8 @@ import {
   FiUser, FiCheckSquare, FiSettings, FiLogOut, FiShield, FiMenu, FiX,
 } from "react-icons/fi";
 
+const SERVER_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace("/api", "");
+
 export default function Sidebar({ role }) {
 
   const navigate = useNavigate();
@@ -158,7 +160,7 @@ export default function Sidebar({ role }) {
           <img
             src={
               user?.profilePhoto
-                ? `http://localhost:5000/${user.profilePhoto}`
+                ? `${SERVER_URL}/${user.profilePhoto}`
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=132843&color=fff&size=80`
             }
             alt="avatar"

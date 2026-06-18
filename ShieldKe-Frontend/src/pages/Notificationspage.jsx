@@ -8,7 +8,8 @@ import {
   FiInfo, FiPhone, FiChevronRight,
 } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_URL = API_URL.replace("/api", "");
 
 export default function NotificationsPage() {
 
@@ -163,7 +164,7 @@ export default function NotificationsPage() {
                   <img
                     src={
                       n.sender?.profilePhoto
-                        ? `http://localhost:5000/${n.sender.profilePhoto}`
+                        ? `${SERVER_URL}/${n.sender.profilePhoto}`
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=EFF6FF&color=1D4ED8&size=80`
                     }
                     alt={senderName}

@@ -9,7 +9,8 @@ import {
   FiMail, FiShield, FiMessageSquare,
 } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_URL = API_URL.replace("/api", "");
 
 export default function AdminDashboard() {
 
@@ -178,7 +179,7 @@ export default function AdminDashboard() {
                     <img
                       src={
                         l.profilePhoto
-                          ? `http://localhost:5000/${l.profilePhoto}`
+                          ? `${SERVER_URL}/${l.profilePhoto}`
                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(l.name)}&background=EFF6FF&color=1D4ED8&size=80`
                       }
                       alt={l.name}
@@ -273,7 +274,7 @@ export default function AdminDashboard() {
                     <img
                       src={
                         lawyer.profilePhoto
-                          ? `http://localhost:5000/${lawyer.profilePhoto}`
+                          ? `${SERVER_URL}/${lawyer.profilePhoto}`
                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(lawyer.name)}&background=EFF6FF&color=1D4ED8&size=80`
                       }
                       alt={lawyer.name}
@@ -315,19 +316,19 @@ export default function AdminDashboard() {
                 {/* DOCUMENTS */}
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:16 }}>
                   {lawyer.barCertificate && (
-                    <a href={`http://localhost:5000/${lawyer.barCertificate}`} target="_blank" rel="noreferrer"
+                    <a href={`${SERVER_URL}/${lawyer.barCertificate}`} target="_blank" rel="noreferrer"
                       style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:7, background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)", color:"#10B981", fontSize:13, fontWeight:700, textDecoration:"none" }}>
                       <FiFileText size={13}/> BAR Certificate
                     </a>
                   )}
                   {lawyer.practicingCertificate && (
-                    <a href={`http://localhost:5000/${lawyer.practicingCertificate}`} target="_blank" rel="noreferrer"
+                    <a href={`${SERVER_URL}/${lawyer.practicingCertificate}`} target="_blank" rel="noreferrer"
                       style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:7, background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)", color:"#10B981", fontSize:13, fontWeight:700, textDecoration:"none" }}>
                       <FiFileText size={13}/> Practicing Certificate
                     </a>
                   )}
                   {lawyer.nationalIdDocument && (
-                    <a href={`http://localhost:5000/${lawyer.nationalIdDocument}`} target="_blank" rel="noreferrer"
+                    <a href={`${SERVER_URL}/${lawyer.nationalIdDocument}`} target="_blank" rel="noreferrer"
                       style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:7, background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)", color:"#10B981", fontSize:13, fontWeight:700, textDecoration:"none" }}>
                       <FiFileText size={13}/> National ID
                     </a>

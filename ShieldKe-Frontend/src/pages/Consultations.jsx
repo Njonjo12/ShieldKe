@@ -6,7 +6,7 @@ import ChatWindow from "../components/ChatWindow";
 import useIsMobile from "../hooks/useIsMobile";
 import { FiMessageSquare, FiCheckCircle, FiClock, FiXCircle, FiUser } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function Consultations() {
 
@@ -126,6 +126,11 @@ export default function Consultations() {
                 <div style={{ fontSize: 13, color: "#374151", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {c.message || "Consultation request"}
                 </div>
+                {c.status === "rejected" && c.rejectionReason && (
+                  <div style={{ fontSize: 12, color: "#F87171", fontStyle: "italic", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    "{c.rejectionReason}"
+                  </div>
+                )}
                 <div style={{ fontSize: 12, color: "#9CA3AF" }}>
                   {new Date(c.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
                 </div>
@@ -160,10 +165,15 @@ export default function Consultations() {
               </div>
 
               {/* MESSAGE */}
-              <div style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
                 <span style={{ fontSize: 14, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
                   {c.message || "Consultation request"}
                 </span>
+                {c.status === "rejected" && c.rejectionReason && (
+                  <span style={{ fontSize: 12, color: "#F87171", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
+                    "{c.rejectionReason}"
+                  </span>
+                )}
               </div>
 
               {/* STATUS */}

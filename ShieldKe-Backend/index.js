@@ -31,6 +31,20 @@ const notificationRoutes =
 
 
 /* =========================
+   ALLOWED ORIGINS
+   FRONTEND_URL is set in Render's env
+   vars to the live Vercel URL. localhost
+   stays in the list too so local dev
+   keeps working unchanged.
+========================= */
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+
+/* =========================
    EXPRESS APP
 ========================= */
 
@@ -38,7 +52,7 @@ const notificationRoutes =
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: allowedOrigins,
   credentials: true
 }));
 
@@ -103,7 +117,7 @@ const io = new Server(server, {
 
   cors: {
 
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
 
     methods: ["GET", "POST"],
 

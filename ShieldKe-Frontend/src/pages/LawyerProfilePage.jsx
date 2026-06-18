@@ -4,7 +4,8 @@ import DashboardShell from "../components/DashboardShell";
 import ProfilePhotoUploader from "../components/ProfilePhotoUploader";
 import { FiMail, FiPhone, FiMapPin, FiBriefcase, FiAward, FiDollarSign, FiCheckCircle } from "react-icons/fi";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SERVER_URL = API_URL.replace("/api", "");
 
 export default function LawyerProfilePage() {
 
@@ -38,9 +39,9 @@ export default function LawyerProfilePage() {
       {/* TOP PROFILE BANNER */}
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", padding: "28px 32px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 24 }}>
         <ProfilePhotoUploader
-          currentPhotoUrl={lawyer.profilePhoto ? `http://localhost:5000/${lawyer.profilePhoto}` : null}
+          currentPhotoUrl={lawyer.profilePhoto ? `${SERVER_URL}/${lawyer.profilePhoto}` : null}
           userName={lawyer.name}
-          uploadUrl="http://localhost:5000/api/lawyers/profile/photo"
+          uploadUrl={`${API_URL}/lawyers/profile/photo`}
           size={90}
           ringColor="#00A86B"
           onUpdated={(updated) => setLawyer((prev) => ({ ...prev, ...updated }))}
