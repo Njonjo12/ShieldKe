@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import useIsMobile from "../hooks/useIsMobile";
 import { FiShield, FiArrowRight, FiUser, FiMail, FiLock, FiBriefcase } from "react-icons/fi";
 
 const API_URL = "http://localhost:5000/api";
@@ -7,23 +8,44 @@ const API_URL = "http://localhost:5000/api";
 export default function Register() {
 
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({
     name: "", email: "", password: "", role: "client",
     specialization: "", yearsOfExperience: "", lskNumber: "",
     location: "", bio: "", consultationFee: "",
   });
   const [profilePhoto,         setProfilePhoto]         = useState(null);
+  const [photoPreview,         setPhotoPreview]         = useState(null);
   const [barCertificate,       setBarCertificate]       = useState(null);
   const [practicingCertificate,setPracticingCertificate] = useState(null);
   const [nationalIdDocument,   setNationalIdDocument]   = useState(null);
   const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handlePhotoChange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setProfilePhoto(f);
+    setPhotoPreview(URL.createObjectURL(f));
+  };
+
+  const removePhoto = () => {
+    setProfilePhoto(null);
+    setPhotoPreview(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!agreedToTerms) {
+      setError("You must agree to the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -66,11 +88,14 @@ export default function Register() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px" }}>
+    <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: isMobile ? "24px 14px" : "40px 20px" }}>
       <div style={{ width: "100%", maxWidth: 560 }}>
 
         {/* LOGO */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center" }}>
+        <div
+          onClick={() => navigate("/")}
+          style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, justifyContent: "center", cursor: "pointer" }}
+        >
           <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg,#C9961A,#F0BE4A)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <FiShield size={19} color="#0B1F3A" strokeWidth={2.5} />
           </div>
@@ -91,13 +116,13 @@ export default function Register() {
         )}
 
         {/* FORM CARD */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "32px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: isMobile ? "24px 18px" : "32px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
             {/* ROLE TOGGLE */}
             <div>
               <label style={labelStyle}>I am a</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
                 {["client", "lawyer"].map((r) => (
                   <button
                     key={r} type="button"
@@ -118,7 +143,7 @@ export default function Register() {
             </div>
 
             {/* BASE FIELDS */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div>
                 <label style={labelStyle}><FiUser size={11} style={{ marginRight: 4, verticalAlign: "middle" }} />Full Name</label>
                 <input name="name" placeholder="Your full name" value={form.name} onChange={handleChange} required style={inputStyle} />
@@ -137,7 +162,64 @@ export default function Register() {
             {/* PROFILE PHOTO */}
             <div>
               <label style={labelStyle}>Profile Photo</label>
-              <input type="file" accept="image/*" onChange={e => setProfilePhoto(e.target.files[0])} style={fileStyle} />
+
+              {!photoPreview ? (
+                <label
+                  htmlFor="profilePhotoInput"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "14px 16px", borderRadius: 9,
+                    border: "1px dashed #D1D5DB", background: "#F9FAFB",
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#00A86B"; e.currentTarget.style.background = "#F0FDF4"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#D1D5DB"; e.currentTarget.style.background = "#F9FAFB"; }}
+                >
+                  <div style={{
+                    width: 38, height: 38, borderRadius: "50%",
+                    background: "#fff", border: "1px solid #E5E7EB",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0, fontSize: 16,
+                  }}>📷</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Click to upload a photo</div>
+                    <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>JPG or PNG, up to 5MB</div>
+                  </div>
+                </label>
+              ) : (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  padding: "12px 16px", borderRadius: 9,
+                  border: "1px solid #A7F3D0", background: "#F0FDF4",
+                }}>
+                  <img
+                    src={photoPreview}
+                    alt="Selected profile"
+                    style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "2px solid #00A86B", flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#059669" }}>✓ Photo selected</div>
+                    <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {profilePhoto?.name}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removePhoto}
+                    style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 7, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "#6B7280", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              <input
+                id="profilePhotoInput"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                style={{ display: "none" }}
+              />
             </div>
 
             {/* LAWYER-ONLY FIELDS */}
@@ -149,7 +231,7 @@ export default function Register() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1F3A", textTransform: "uppercase", letterSpacing: "0.06em" }}>Lawyer Details</div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                     <div>
                       <label style={labelStyle}>Specialization</label>
                       <input name="specialization" placeholder="e.g. Family Law" value={form.specialization} onChange={handleChange} style={inputStyle} />
@@ -185,7 +267,7 @@ export default function Register() {
                     <div style={{ width: 4, height: 16, background: "linear-gradient(135deg,#C9961A,#F0BE4A)", borderRadius: 4 }} />
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1F3A", textTransform: "uppercase", letterSpacing: "0.06em" }}>Verification Documents</div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                     {[
                       { label: "BAR Certificate",        setter: setBarCertificate },
                       { label: "Practicing Certificate", setter: setPracticingCertificate },
@@ -201,10 +283,49 @@ export default function Register() {
               </>
             )}
 
+            {/* TERMS AGREEMENT */}
+            <div style={{
+              display: "flex", alignItems: "flex-start", gap: 10,
+              padding: "14px 16px", borderRadius: 10,
+              background: agreedToTerms ? "#F0FDF4" : "#F9FAFB",
+              border: `1px solid ${agreedToTerms ? "#A7F3D0" : "#E5E7EB"}`,
+              transition: "all 0.15s",
+            }}>
+              <input
+                type="checkbox"
+                id="agreeTerms"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                style={{
+                  marginTop: 2, width: 17, height: 17, cursor: "pointer",
+                  accentColor: "#006B3F", flexShrink: 0,
+                }}
+              />
+              <label htmlFor="agreeTerms" style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, cursor: "pointer" }}>
+                I agree to ShieldKe's{" "}
+                <Link to="/terms-of-service" target="_blank" style={{ color: "#006B3F", fontWeight: 700, textDecoration: "underline" }}>
+                  Terms of Service
+                </Link>
+                {" "}and{" "}
+                <Link to="/privacy-policy" target="_blank" style={{ color: "#006B3F", fontWeight: 700, textDecoration: "underline" }}>
+                  Privacy Policy
+                </Link>
+                {form.role === "lawyer" && (
+                  <>
+                    , and the{" "}
+                    <Link to="/advocate-agreement" target="_blank" style={{ color: "#006B3F", fontWeight: 700, textDecoration: "underline" }}>
+                      Advocate Agreement
+                    </Link>
+                  </>
+                )}
+                .
+              </label>
+            </div>
+
             {/* SUBMIT */}
             <button
-              type="submit" disabled={loading}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 10, background: loading ? "#9CA3AF" : "linear-gradient(135deg,#0B1F3A,#1A3A6E)", border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", marginTop: 8 }}
+              type="submit" disabled={loading || !agreedToTerms}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 10, background: (loading || !agreedToTerms) ? "#9CA3AF" : "linear-gradient(135deg,#0B1F3A,#1A3A6E)", border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: (loading || !agreedToTerms) ? "not-allowed" : "pointer", fontFamily: "inherit", marginTop: 8 }}
             >
               {loading ? "Creating account..." : <><span>Create Account</span><FiArrowRight size={16} /></>}
             </button>

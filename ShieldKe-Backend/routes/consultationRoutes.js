@@ -69,9 +69,18 @@ router.put(
 
 /* ===============================
    DEBUG ROUTE (DEV ONLY)
+   SECURITY FIX: this route had no auth
+   at all — any unauthenticated request
+   could read every consultation on the
+   platform, including private messages.
+   Now restricted to admins only.
 ================================ */
 
-router.get("/debug/all", async (req, res) => {
+router.get(
+  "/debug/all",
+  protect,
+  authorize("admin"),
+  async (req, res) => {
 
   try {
 

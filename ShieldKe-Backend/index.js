@@ -121,13 +121,15 @@ const io = new Server(server, {
 const Message = require("./models/Message");
 const Consultation = require("./models/Consultation");
 const Notification = require("./models/Notification");
+const realtime = require("./utils/realtime");
 
 
 /* =========================
    ONLINE USERS
 ========================= */
 
-const onlineUsers = {};
+const onlineUsers = realtime.onlineUsers;
+realtime.setIO(io);
 
 
 /* =========================
@@ -139,13 +141,51 @@ io.on("connection", (socket) => {
 
     /* ──────────────────────────────────────────
      CALL: Caller initiates → relay to room
+     + create a persistent notification so the
+     recipient sees it on the bell / notifications
+     page even if they're not in the chat room.
   ────────────────────────────────────────── */
-  socket.on("call-user", ({ consultationId, callType, offer, callerName }) => {
+  socket.on("call-user", async ({ consultationId, callType, offer, callerName, callerId }) => {
+
+    /* existing live signaling — unchanged */
     socket.to(consultationId).emit("incoming-call", {
       callType,
       offer,
       callerName,
     });
+
+    /* new: persisted notification */
+    try {
+
+      if (!callerId) return;
+
+      const consultation = await Consultation.findById(consultationId);
+      if (!consultation) return;
+
+      const recipient =
+        consultation.client.toString() === callerId
+          ? consultation.lawyer
+          : consultation.client;
+
+      const notification = await Notification.create({
+        user: recipient,
+        sender: callerId,
+        relatedConsultation: consultationId,
+        title: `Incoming ${callType === "video" ? "Video" : "Voice"} Call`,
+        message: `${callerName} is calling you`,
+        type: "call",
+      });
+
+      const recipientSocket = onlineUsers[recipient.toString()];
+
+      if (recipientSocket) {
+        io.to(recipientSocket).emit("newNotification", notification);
+      }
+
+    } catch (error) {
+      console.error("Call notification error:", error);
+    }
+
   });
 
   /* ──────────────────────────────────────────
@@ -336,6 +376,11 @@ io.on("connection", (socket) => {
         await Notification.create({
 
           user: recipient,
+
+          sender: message.sender,
+
+          relatedConsultation:
+            message.consultation,
 
           title: "New Message",
 

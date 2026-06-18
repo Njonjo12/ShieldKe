@@ -200,6 +200,7 @@ export default function CallWindow({
         callType,
         offer:      pc.localDescription,
         callerName: user?.name,
+        callerId:   user?._id,
       });
 
       /* callee accepted → set remote desc */

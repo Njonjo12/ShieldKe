@@ -1,5 +1,7 @@
 const Consultation = require("../models/Consultation");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
+const { notifyUser } = require("../utils/realtime");
 
 /*
 ========================================
@@ -61,6 +63,29 @@ const createConsultation = async (req, res) => {
       message
 
     });
+
+    /*
+    ========================================
+    NOTIFY LAWYER OF NEW REQUEST
+    ========================================
+    */
+
+    try {
+
+      const notification = await Notification.create({
+        user: lawyerId,
+        sender: req.user._id,
+        relatedConsultation: consultation._id,
+        title: "New Consultation Request",
+        message: `${req.user.name} sent you a consultation request`,
+        type: "consultation",
+      });
+
+      notifyUser(lawyerId, notification);
+
+    } catch (notifyErr) {
+      console.error("Consultation notification error:", notifyErr);
+    }
 
     res.status(201).json(consultation);
 
@@ -222,6 +247,35 @@ const updateConsultationStatus =
     consultation.status = status;
 
     await consultation.save();
+
+    /*
+    ========================================
+    NOTIFY CLIENT OF STATUS CHANGE
+    ========================================
+    */
+
+    try {
+
+      const isAccepted = status === "accepted";
+
+      const notification = await Notification.create({
+        user: consultation.client,
+        sender: req.user._id,
+        relatedConsultation: consultation._id,
+        title: isAccepted
+          ? "Consultation Accepted"
+          : "Consultation Declined",
+        message: isAccepted
+          ? `${req.user.name} accepted your consultation request`
+          : `${req.user.name} declined your consultation request`,
+        type: "consultation",
+      });
+
+      notifyUser(consultation.client, notification);
+
+    } catch (notifyErr) {
+      console.error("Status notification error:", notifyErr);
+    }
 
     res.json(consultation);
 

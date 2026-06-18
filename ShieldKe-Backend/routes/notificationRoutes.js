@@ -21,6 +21,10 @@ router.get("/", protect, async (req, res) => {
       user: req.user._id
     })
 
+    .populate("sender", "name profilePhoto role")
+
+    .populate("relatedConsultation", "client lawyer status")
+
     .sort({ createdAt: -1 });
 
     res.json(notifications);

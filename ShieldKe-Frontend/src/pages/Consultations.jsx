@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getToken } from "../utils/auth";
 import DashboardShell from "../components/DashboardShell";
 import ChatWindow from "../components/ChatWindow";
+import useIsMobile from "../hooks/useIsMobile";
 import { FiMessageSquare, FiCheckCircle, FiClock, FiXCircle, FiUser } from "react-icons/fi";
 
 const API_URL = "http://localhost:5000/api";
 
 export default function Consultations() {
 
+  const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const [consultations, setConsultations] = useState([]);
   const [activeConsultation, setActiveConsultation] = useState(null);
 
@@ -18,7 +22,16 @@ export default function Consultations() {
         headers: { Authorization: `Bearer ${getToken()}` }
       });
       const data = await res.json();
-      if (Array.isArray(data)) setConsultations(data);
+      if (Array.isArray(data)) {
+        setConsultations(data);
+
+        /* deep-link from a notification: ?consultationId=XXX */
+        const deepLinkId = searchParams.get("consultationId");
+        if (deepLinkId) {
+          const match = data.find((c) => c._id === deepLinkId);
+          if (match) setActiveConsultation(match);
+        }
+      }
       else setConsultations([]);
     } catch (error) {
       console.error("Consultation fetch error", error);
@@ -47,7 +60,7 @@ export default function Consultations() {
     >
 
       {/* ── STAT ROW ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 12 : 20, marginBottom: isMobile ? 20 : 28 }}>
         {[
           { label: "Total",    value: consultations.length,                                          color: "#3B82F6", bg: "#EFF6FF" },
           { label: "Accepted", value: consultations.filter(c => c.status === "accepted").length,     color: "#10B981", bg: "#ECFDF5" },
@@ -63,12 +76,14 @@ export default function Consultations() {
       {/* ── LIST ── */}
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
 
-        {/* TABLE HEADER */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px 100px", gap: 0, padding: "12px 24px", background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-          {["Lawyer", "Message", "Status", "Date"].map((h) => (
-            <div key={h} style={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
-          ))}
-        </div>
+        {/* TABLE HEADER — desktop only, mobile uses stacked cards instead */}
+        {!isMobile && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px 100px", gap: 0, padding: "12px 24px", background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+            {["Lawyer", "Message", "Status", "Date"].map((h) => (
+              <div key={h} style={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
+            ))}
+          </div>
+        )}
 
         {/* EMPTY */}
         {consultations.length === 0 && (
@@ -83,6 +98,41 @@ export default function Consultations() {
         {consultations.map((c) => {
           const st = statusStyle(c.status);
           const isActive = activeConsultation?._id === c._id;
+
+          if (isMobile) {
+            return (
+              <div
+                key={c._id}
+                onClick={() => setActiveConsultation(isActive ? null : c)}
+                style={{
+                  padding: "14px 16px",
+                  borderBottom: "1px solid #F3F4F6",
+                  cursor: "pointer",
+                  background: isActive ? "#F0FDF4" : "#fff",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0 }}>
+                    <FiUser size={14} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0B1F3A" }}>{c.lawyer?.name || "Lawyer"}</div>
+                    <div style={{ fontSize: 11, color: "#9CA3AF" }}>{c.lawyer?.specialization || "Legal Professional"}</div>
+                  </div>
+                  <span style={{ padding: "4px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: st.bg, color: st.color, border: st.border, flexShrink: 0 }}>
+                    {c.status?.charAt(0).toUpperCase() + c.status?.slice(1)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: "#374151", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {c.message || "Consultation request"}
+                </div>
+                <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+                  {new Date(c.createdAt).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" })}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={c._id}

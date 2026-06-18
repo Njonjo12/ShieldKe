@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getToken } from "../utils/auth";
 import DashboardShell from "../components/DashboardShell";
+import ProfilePhotoUploader from "../components/ProfilePhotoUploader";
 import { FiMail, FiPhone, FiMapPin, FiBriefcase, FiAward, FiDollarSign, FiCheckCircle } from "react-icons/fi";
 
 const API_URL = "http://localhost:5000/api";
@@ -36,14 +37,13 @@ export default function LawyerProfilePage() {
 
       {/* TOP PROFILE BANNER */}
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB", padding: "28px 32px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 24 }}>
-        <img
-          src={
-            lawyer.profilePhoto
-              ? `http://localhost:5000/${lawyer.profilePhoto}`
-              : `https://ui-avatars.com/api/?name=${encodeURIComponent(lawyer.name)}&background=EFF6FF&color=1D4ED8&size=160`
-          }
-          alt="profile"
-          style={{ width: 90, height: 90, borderRadius: "50%", objectFit: "cover", border: "4px solid #DBEAFE", flexShrink: 0 }}
+        <ProfilePhotoUploader
+          currentPhotoUrl={lawyer.profilePhoto ? `http://localhost:5000/${lawyer.profilePhoto}` : null}
+          userName={lawyer.name}
+          uploadUrl="http://localhost:5000/api/lawyers/profile/photo"
+          size={90}
+          ringColor="#00A86B"
+          onUpdated={(updated) => setLawyer((prev) => ({ ...prev, ...updated }))}
         />
         <div>
           <div style={{ fontSize: 24, fontWeight: 800, color: "#0B1F3A", marginBottom: 4 }}>{lawyer.name}</div>

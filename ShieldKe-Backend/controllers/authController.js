@@ -81,6 +81,7 @@ const registerUser = async (req, res) => {
     let barCertificate = "";
     let practicingCertificate = "";
     let nationalIdDocument = "";
+    let profilePhoto = "";
 
     if (req.files) {
 
@@ -102,6 +103,13 @@ const registerUser = async (req, res) => {
 
         nationalIdDocument =
           req.files.nationalIdDocument[0].path;
+
+      }
+
+      if (req.files.profilePhoto) {
+
+        profilePhoto =
+          req.files.profilePhoto[0].path;
 
       }
 
@@ -149,6 +157,9 @@ const registerUser = async (req, res) => {
       existingUser.nationalIdDocument =
         nationalIdDocument;
 
+      existingUser.profilePhoto =
+        profilePhoto;
+
       existingUser.verificationStatus =
         "pending";
 
@@ -189,6 +200,7 @@ const registerUser = async (req, res) => {
       barCertificate,
       practicingCertificate,
       nationalIdDocument,
+      profilePhoto,
 
       verificationStatus:
         role === "lawyer"
@@ -216,7 +228,9 @@ const registerUser = async (req, res) => {
         rejectionReason:
           user.rejectionReason,
         canReapply:
-          user.canReapply
+          user.canReapply,
+        profilePhoto:
+          user.profilePhoto
       }
 
     });
@@ -321,7 +335,10 @@ const loginUser = async (req, res) => {
           user.location,
 
         bio:
-          user.bio
+          user.bio,
+
+        profilePhoto:
+          user.profilePhoto
       }
 
     });

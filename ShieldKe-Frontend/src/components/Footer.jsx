@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import {
@@ -122,19 +123,19 @@ export default function Footer() {
             Legal
           </h3>
 
-          <a href="/">
+          <Link to="/privacy-policy">
             Privacy Policy
-          </a>
+          </Link>
 
-          <a href="/">
+          <Link to="/terms-of-service">
             Terms & Conditions
-          </a>
+          </Link>
 
-          <a href="/">
-            Security
-          </a>
+          <Link to="/advocate-agreement">
+            For Advocates
+          </Link>
 
-          <a href="/">
+          <a href="mailto:support@shieldke.co.ke">
             Support
           </a>
 

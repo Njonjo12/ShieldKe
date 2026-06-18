@@ -9,6 +9,18 @@ const notificationSchema = new mongoose.Schema(
       required: true
     },
 
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false
+    },
+
+    relatedConsultation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Consultation",
+      required: false
+    },
+
     title: {
       type: String,
       required: true
@@ -26,6 +38,7 @@ const notificationSchema = new mongoose.Schema(
         "consultation",
         "payment",
         "verification",
+        "call",
         "system"
       ],
       default: "system"

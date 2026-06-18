@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const User = require("../models/User");
+const Consultation = require("../models/Consultation");
 
 const { protect } =
   require("../middleware/authMiddleware");
@@ -245,7 +246,7 @@ router.put(
       lawyer.verificationStatus =
         "verified";
 
-      lawyer.rejectionComment = "";
+      lawyer.rejectionReason = "";
 
       await lawyer.save();
 
@@ -286,7 +287,7 @@ router.put(
 
     try {
 
-      const { rejectionComment } = req.body;
+      const { rejectionReason } = req.body;
 
       const lawyer =
         await User.findById(req.params.id);
@@ -304,14 +305,87 @@ router.put(
       lawyer.verificationStatus =
         "rejected";
 
-      lawyer.rejectionComment =
-        rejectionComment || "";
+      lawyer.rejectionReason =
+        rejectionReason || "";
 
       await lawyer.save();
 
       res.json({
         message: "Lawyer rejected"
       });
+
+    } catch (error) {
+
+      console.error(error);
+
+      res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+
+);
+
+/*
+========================================
+GET ALL USERS (clients + lawyers)
+Powers the admin "Users" sidebar tab.
+========================================
+*/
+
+router.get(
+  "/users",
+  protect,
+  adminOnly,
+  async (req, res) => {
+
+    try {
+
+      const users = await User.find({})
+        .select("-password")
+        .sort({ createdAt: -1 });
+
+      res.json(users);
+
+    } catch (error) {
+
+      console.error(error);
+
+      res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+
+);
+
+
+/*
+========================================
+GET ALL CONSULTATIONS (platform-wide)
+Powers the admin "Consultations" sidebar
+tab. Requires the Consultation model.
+========================================
+*/
+
+router.get(
+  "/consultations",
+  protect,
+  adminOnly,
+  async (req, res) => {
+
+    try {
+
+      const consultations = await Consultation.find({})
+        .populate("client", "name email")
+        .populate("lawyer", "name email specialization")
+        .sort({ createdAt: -1 });
+
+      res.json(consultations);
 
     } catch (error) {
 

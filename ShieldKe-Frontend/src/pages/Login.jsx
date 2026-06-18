@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { saveAuth } from "../utils/auth";
+import useIsMobile from "../hooks/useIsMobile";
 import { FiMail, FiLock, FiShield, FiArrowRight } from "react-icons/fi";
 
 const API_URL = "http://localhost:5000/api";
@@ -8,6 +9,7 @@ const API_URL = "http://localhost:5000/api";
 export default function Login() {
 
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [form, setForm]     = useState({ email: "", password: "" });
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,14 +50,17 @@ export default function Login() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 1fr", background: "#F8FAFC" }}>
+    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", background: "#F8FAFC" }}>
 
       {/* ── LEFT — FORM ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 40px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "40px 20px" : "48px 40px" }}>
         <div style={{ width: "100%", maxWidth: 440 }}>
 
           {/* LOGO */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
+          <div
+            onClick={() => navigate("/")}
+            style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, cursor: "pointer", width: "fit-content" }}
+          >
             <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg,#C9961A,#F0BE4A)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FiShield size={20} color="#0B1F3A" strokeWidth={2.5} />
             </div>
@@ -65,7 +70,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div style={{ fontSize: 28, fontWeight: 800, color: "#0B1F3A", marginBottom: 8 }}>Welcome back</div>
+          <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: "#0B1F3A", marginBottom: 8 }}>Welcome back</div>
           <div style={{ fontSize: 15, color: "#6B7280", marginBottom: 32 }}>Sign in to your ShieldKe account</div>
 
           {/* ERROR */}
@@ -121,41 +126,43 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ── RIGHT — HERO ── */}
-      <div style={{ background: "linear-gradient(160deg,#0B1F3A 0%,#132843 50%,#006B3F 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 60px", position: "relative", overflow: "hidden" }}>
+      {/* ── RIGHT — HERO (hidden on mobile to keep the form front and center) ── */}
+      {!isMobile && (
+        <div style={{ background: "linear-gradient(160deg,#0B1F3A 0%,#132843 50%,#006B3F 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 60px", position: "relative", overflow: "hidden" }}>
 
-        {/* decorative circles */}
-        <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)", top: -100, right: -100 }} />
-        <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)", bottom: -60, left: -60 }} />
+          {/* decorative circles */}
+          <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)", top: -100, right: -100 }} />
+          <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)", bottom: -60, left: -60 }} />
 
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 460 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: 600, marginBottom: 28 }}>
-            🇰🇪 Kenya's #1 Legal Platform
-          </div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: "#fff", lineHeight: 1.1, marginBottom: 20, letterSpacing: "-0.03em" }}>
-            Justice is just a<br /><span style={{ color: "#00A86B" }}>click away</span>
-          </div>
-          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", lineHeight: 1.9, marginBottom: 36 }}>
-            Connect with verified, LSK-registered lawyers across Kenya for fast, confidential legal consultation.
-          </p>
+          <div style={{ position: "relative", zIndex: 2, maxWidth: 460 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: 600, marginBottom: 28 }}>
+              🇰🇪 Kenya's #1 Legal Platform
+            </div>
+            <div style={{ fontSize: 40, fontWeight: 900, color: "#fff", lineHeight: 1.1, marginBottom: 20, letterSpacing: "-0.03em" }}>
+              Justice is just a<br /><span style={{ color: "#00A86B" }}>click away</span>
+            </div>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", lineHeight: 1.9, marginBottom: 36 }}>
+              Connect with verified, LSK-registered lawyers across Kenya for fast, confidential legal consultation.
+            </p>
 
-          {/* TRUST ITEMS */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {[
-              "All lawyers are LSK-verified",
-              "End-to-end encrypted consultations",
-              "Available 24/7 across Kenya",
-            ].map((item) => (
-              <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.65)" }}>
-                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(0,168,107,0.2)", border: "1px solid rgba(0,168,107,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FiArrowRight size={11} color="#00A86B" />
+            {/* TRUST ITEMS */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {[
+                "All lawyers are LSK-verified",
+                "End-to-end encrypted consultations",
+                "Available 24/7 across Kenya",
+              ].map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.65)" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(0,168,107,0.2)", border: "1px solid rgba(0,168,107,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <FiArrowRight size={11} color="#00A86B" />
+                  </div>
+                  {item}
                 </div>
-                {item}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

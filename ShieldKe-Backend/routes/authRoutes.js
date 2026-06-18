@@ -23,7 +23,8 @@ router.post(
   upload.fields([
     { name: "barCertificate", maxCount: 1 },
     { name: "practicingCertificate", maxCount: 1 },
-    { name: "nationalIdDocument", maxCount: 1 }
+    { name: "nationalIdDocument", maxCount: 1 },
+    { name: "profilePhoto", maxCount: 1 }
   ]),
 
   registerUser
