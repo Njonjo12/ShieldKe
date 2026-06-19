@@ -161,7 +161,7 @@ export default function Footer() {
 
           <p>
             <FiPhone />
-            +254 700 000000
+            +254 727 408 163
           </p>
 
           <p>
@@ -180,7 +180,7 @@ export default function Footer() {
       <div className="footer-bottom">
 
         <p>
-          © {year} ShieldKe.
+          © {year} NEO-TECH.
           All rights reserved.
         </p>
 
