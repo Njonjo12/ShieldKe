@@ -58,6 +58,13 @@ export default function Register() {
       const res  = await fetch(`${API_URL}/auth/register`, { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Registration failed"); return; }
+
+      /* flags this browser as having just completed registration, so
+         WelcomeOnboarding shows once after their first login — without
+         this, every existing user would see the welcome flow the first
+         time they load their dashboard after this feature ships */
+      localStorage.setItem("justRegistered", "true");
+
       navigate("/login");
     } catch (err) {
       setError("Network error. Please try again.");

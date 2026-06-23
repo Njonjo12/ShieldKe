@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import socket from "../socket";
 import {
   FiMic, FiMicOff, FiVideo, FiVideoOff,
-  FiPhoneOff, FiMaximize2, FiMinimize2, FiPhone,
+  FiPhoneOff, FiMaximize2, FiMinimize2,
 } from "react-icons/fi";
 
 /* ─── STUN servers (Google's free public servers) ─── */
@@ -81,7 +81,13 @@ export default function CallWindow({
   onEnd,
 }) {
 
-  const [callStatus,  setCallStatus]  = useState(isIncoming ? "incoming" : "connecting");
+  /* Both incoming and outgoing calls start "connecting" — for an
+     incoming call, the actual accept/decline decision already
+     happened on GlobalCallManager's banner *before* this component
+     ever mounts, so there's no separate "incoming" state to show
+     here anymore (showing one would mean asking the user to accept
+     the same call twice). */
+  const [callStatus,  setCallStatus]  = useState("connecting");
   const [isMuted,     setIsMuted]     = useState(false);
   const [isCamOff,    setIsCamOff]    = useState(false);
   const [duration,    setDuration]    = useState(0);
@@ -238,13 +244,10 @@ export default function CallWindow({
     }
   };
 
-  /* ══════════════════════════════════════
-     REJECT CALL (callee side)
-  ══════════════════════════════════════ */
-  const rejectCall = () => {
-    socket.emit("call-rejected", { consultationId });
-    onEnd();
-  };
+  /* Note: there's no rejectCall here anymore — declining a call
+     happens on GlobalCallManager's banner, before CallWindow ever
+     mounts. By the time this component exists, the call has
+     already been accepted. */
 
   /* ══════════════════════════════════════
      ICE + CALL-ENDED (both sides)
@@ -266,10 +269,19 @@ export default function CallWindow({
   }, [endCall, cleanup]);
 
   /* ══════════════════════════════════════
-     AUTO-INITIATE (outgoing call)
+     AUTO-START
+     Outgoing: send the offer immediately.
+     Incoming: the user already clicked Accept
+     on GlobalCallManager's banner to get here,
+     so proceed straight to building the answer
+     — no second accept step.
   ══════════════════════════════════════ */
   useEffect(() => {
-    if (!isIncoming) initiateCall();
+    if (isIncoming) {
+      acceptCall();
+    } else {
+      initiateCall();
+    }
   }, []); // eslint-disable-line
 
   /* ══════════════════════════════════════
@@ -289,7 +301,6 @@ export default function CallWindow({
      RENDER
   ══════════════════════════════════════ */
   const isVideo = callType === "video";
-  const remoteName = isIncoming ? callerName : "Connecting…";
 
   return (
     <motion.div
@@ -368,21 +379,10 @@ export default function CallWindow({
                 </div>
               )}
 
-              {/* Incoming call avatar */}
-              {callStatus === "incoming" && (
-                <motion.div
-                  animate={{ scale: [1, 1.04, 1] }}
-                  transition={{ duration: 1.4, repeat: Infinity }}
-                >
-                  <Avatar name={callerName} size={100} />
-                </motion.div>
-              )}
-
               <div style={{ textAlign: "center", marginTop: 16 }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>
-                  {callStatus === "incoming"   ? callerName   :
-                   callStatus === "active"     ? (isIncoming ? callerName : "Connected") :
-                   callStatus === "connecting" ? "Calling…"  :
+                  {callStatus === "active"     ? (isIncoming ? callerName : "Connected") :
+                   callStatus === "connecting" ? (isIncoming ? callerName : "Calling…") :
                    callStatus === "rejected"   ? "Call Declined" :
                    callStatus === "ended"      ? "Call Ended"    :
                    callStatus === "error"      ? "Connection Failed" : ""}
@@ -390,11 +390,9 @@ export default function CallWindow({
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
                   {callStatus === "active"
                     ? `${isVideo ? "Video" : "Audio"} Call · ${formatDuration(duration)}`
-                    : callStatus === "incoming"
-                      ? `Incoming ${isVideo ? "video" : "audio"} call`
-                      : callStatus === "connecting"
-                        ? "Waiting for the other person…"
-                        : ""}
+                    : callStatus === "connecting"
+                      ? (isIncoming ? "Connecting…" : "Waiting for the other person…")
+                      : ""}
                 </div>
               </div>
             </div>
@@ -473,20 +471,10 @@ export default function CallWindow({
           flexShrink: 0,
         }}>
 
-          {/* INCOMING CALL — accept / reject */}
-          {callStatus === "incoming" && (
-            <>
-              <CtrlBtn onClick={rejectCall} danger label="Decline">
-                <FiPhoneOff size={22} color="#fff" />
-              </CtrlBtn>
-              <CtrlBtn onClick={acceptCall} active label="Accept">
-                <FiPhone size={22} color="#fff" />
-              </CtrlBtn>
-            </>
-          )}
-
-          {/* ACTIVE / CONNECTING CALL */}
-          {callStatus !== "incoming" && callStatus !== "ended" && callStatus !== "rejected" && callStatus !== "error" && (
+          {/* MUTE / CAMERA / HANG UP — shown while connecting and while active.
+              (There's no separate "incoming" accept/decline row here anymore —
+              that decision already happened on GlobalCallManager's banner.) */}
+          {callStatus !== "ended" && callStatus !== "rejected" && callStatus !== "error" && (
             <>
               {/* MUTE */}
               <CtrlBtn onClick={toggleMute} active={isMuted} label={isMuted ? "Unmute" : "Mute"}>

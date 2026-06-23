@@ -110,29 +110,40 @@ export default function GlobalCallManager() {
         )}
       </AnimatePresence>
 
-      {/* ── INCOMING CALL BANNER (works on any page) ── */}
+      {/* ── INCOMING CALL BANNER ──
+          width: calc(100vw - 32px) + left: 16px is the correct
+          mobile approach. On real mobile browsers, scrollbars are
+          overlay (0px wide), so 100vw equals the actual viewport
+          width and the banner gets exactly 16px margins each side.
+          We avoid both left+right (headless Chrome quirk) and
+          left:50%+transform (framer-motion transform conflict). */}
       <AnimatePresence>
         {incomingCall && !activeCall && (
           <motion.div
-            initial={{ y: -80, opacity: 0 }}
+            initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -80, opacity: 0 }}
+            exit={{ y: -100, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
             style={{
-              position: "fixed", top: 20, left: "50%",
-              transform: "translateX(-50%)",
+              position: "fixed",
+              top: 16,
+              left: 16,
+              width: "calc(100vw - 32px)",
+              maxWidth: 440,
               zIndex: 9999,
               background: "#0B1F3A",
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: 16,
-              padding: "16px 22px",
-              display: "flex", alignItems: "center", gap: 16,
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
               boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
-              minWidth: 320,
-              maxWidth: "calc(100vw - 32px)",
+              boxSizing: "border-box",
+              overflow: "hidden",
             }}
           >
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
               <motion.div
                 animate={{ scale: [1, 1.22, 1] }}
                 transition={{ duration: 1.2, repeat: Infinity }}
@@ -146,7 +157,7 @@ export default function GlobalCallManager() {
               <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {incomingCall.callerName}
               </div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2, whiteSpace: "nowrap" }}>
                 Incoming {incomingCall.callType === "video" ? "📹 video" : "📞 audio"} call
               </div>
             </div>

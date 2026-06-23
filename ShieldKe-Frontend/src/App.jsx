@@ -32,6 +32,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AdvocateAgreement from "./pages/AdvocateAgreement";
 import GlobalCallManager from "./components/GlobalCallManager";
+import WelcomeOnboarding from "./components/WelcomeOnboarding";
 
 export default function App() {
 
@@ -40,6 +41,8 @@ export default function App() {
     <>
 
       <GlobalCallManager />
+
+      <WelcomeOnboarding />
 
       <Routes>
 
