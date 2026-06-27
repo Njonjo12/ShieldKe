@@ -33,6 +33,8 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AdvocateAgreement from "./pages/AdvocateAgreement";
 import GlobalCallManager from "./components/GlobalCallManager";
 import WelcomeOnboarding from "./components/WelcomeOnboarding";
+import CallDiagnostic from "./pages/CallDiagnostic";
+
 
 export default function App() {
 
@@ -49,6 +51,9 @@ export default function App() {
       {/* ========================================
           PUBLIC ROUTES
       ======================================== */}
+
+      
+<Route path="/call-diagnostic" element={<CallDiagnostic />} />
 
       <Route
         path="/"

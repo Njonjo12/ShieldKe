@@ -31,20 +31,6 @@ const notificationRoutes =
 
 
 /* =========================
-   ALLOWED ORIGINS
-   FRONTEND_URL is set in Render's env
-   vars to the live Vercel URL. localhost
-   stays in the list too so local dev
-   keeps working unchanged.
-========================= */
-
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
-
-/* =========================
    EXPRESS APP
 ========================= */
 
@@ -52,13 +38,89 @@ const allowedOrigins = [
 const app = express();
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: "http://localhost:5173",
   credentials: true
 }));
 
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 app.use("/api/admin", adminRoutes);
+
+/*
+========================================
+ICE CONFIGURATION ENDPOINT
+
+Returns STUN + TURN server config to the
+frontend when it's about to start a call.
+Keeping credentials on the backend (even
+though they're currently public/free ones)
+means you can upgrade to private Twilio or
+Metered credentials later by just changing
+env vars — no frontend redeploy needed.
+
+FREE TURN via Metered Open Relay is used
+by default. It works globally and handles
+symmetric NAT (the main reason STUN-only
+calls fail on Kenyan mobile networks).
+
+For a production upgrade:
+  1. Sign up at metered.ca (or Twilio)
+  2. Set TURN_USERNAME and TURN_CREDENTIAL
+     in your Render environment variables
+  3. The endpoint picks them up automatically
+
+The credentials expire after 24 hours
+(Twilio NTS pattern) — for now we use
+static free credentials so there's no
+TTL needed.
+========================================
+*/
+
+app.get("/api/calls/ice-config", (req, res) => {
+
+  const turnUsername   = process.env.TURN_USERNAME   || "openrelayproject";
+  const turnCredential = process.env.TURN_CREDENTIAL || "openrelayproject";
+
+  const iceServers = [
+
+    /* STUN — fast candidate discovery */
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:openrelay.metered.ca:80"  },
+
+    /* TURN UDP 80 — works through most firewalls */
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username:   turnUsername,
+      credential: turnCredential
+    },
+
+    /* TURN UDP 443 */
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username:   turnUsername,
+      credential: turnCredential
+    },
+
+    /* TURN TCP 443 — works even when UDP is blocked */
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username:   turnUsername,
+      credential: turnCredential
+    },
+
+    /* TURNS (TLS) — for networks that block plain TURN */
+    {
+      urls: "turns:openrelay.metered.ca:443?transport=tcp",
+      username:   turnUsername,
+      credential: turnCredential
+    }
+
+  ];
+
+  res.json({ iceServers });
+
+});
 
 
 
@@ -117,7 +179,7 @@ const io = new Server(server, {
 
   cors: {
 
-    origin: allowedOrigins,
+    origin: "http://localhost:5173",
 
     methods: ["GET", "POST"],
 
@@ -135,15 +197,13 @@ const io = new Server(server, {
 const Message = require("./models/Message");
 const Consultation = require("./models/Consultation");
 const Notification = require("./models/Notification");
-const realtime = require("./utils/realtime");
 
 
 /* =========================
    ONLINE USERS
 ========================= */
 
-const onlineUsers = realtime.onlineUsers;
-realtime.setIO(io);
+const onlineUsers = {};
 
 
 /* =========================
@@ -155,51 +215,13 @@ io.on("connection", (socket) => {
 
     /* ──────────────────────────────────────────
      CALL: Caller initiates → relay to room
-     + create a persistent notification so the
-     recipient sees it on the bell / notifications
-     page even if they're not in the chat room.
   ────────────────────────────────────────── */
-  socket.on("call-user", async ({ consultationId, callType, offer, callerName, callerId }) => {
-
-    /* existing live signaling — unchanged */
+  socket.on("call-user", ({ consultationId, callType, offer, callerName }) => {
     socket.to(consultationId).emit("incoming-call", {
       callType,
       offer,
       callerName,
     });
-
-    /* new: persisted notification */
-    try {
-
-      if (!callerId) return;
-
-      const consultation = await Consultation.findById(consultationId);
-      if (!consultation) return;
-
-      const recipient =
-        consultation.client.toString() === callerId
-          ? consultation.lawyer
-          : consultation.client;
-
-      const notification = await Notification.create({
-        user: recipient,
-        sender: callerId,
-        relatedConsultation: consultationId,
-        title: `Incoming ${callType === "video" ? "Video" : "Voice"} Call`,
-        message: `${callerName} is calling you`,
-        type: "call",
-      });
-
-      const recipientSocket = onlineUsers[recipient.toString()];
-
-      if (recipientSocket) {
-        io.to(recipientSocket).emit("newNotification", notification);
-      }
-
-    } catch (error) {
-      console.error("Call notification error:", error);
-    }
-
   });
 
   /* ──────────────────────────────────────────
@@ -390,11 +412,6 @@ io.on("connection", (socket) => {
         await Notification.create({
 
           user: recipient,
-
-          sender: message.sender,
-
-          relatedConsultation:
-            message.consultation,
 
           title: "New Message",
 
