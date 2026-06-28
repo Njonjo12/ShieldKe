@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import socket from "../socket";
-import { getToken } from "../utils/auth";
 import {
   FiMic, FiMicOff, FiVideo, FiVideoOff,
   FiPhoneOff, FiMaximize2, FiMinimize2,
@@ -9,260 +8,234 @@ import {
 
 /*
 ========================================
-WEBRTC FIXES IN THIS FILE
+WEBRTC CALL WINDOW
 
-FIX 1 — TURN SERVERS (the main reason
-calls connected but had no media)
-STUN-only fails for ~60-70% of real-world
-connections because most mobile users
-(Safaricom, Airtel, Telkom) are behind
-Carrier-Grade NAT (symmetric NAT), which
-STUN cannot traverse. STUN discovers IP
-addresses but cannot relay packets. TURN
-relays every packet through the server
-when direct peer-to-peer is impossible.
-We now fetch ICE config from the backend
-(GET /api/calls/ice-config) which returns
-both STUN and TURN credentials. This
-single change will fix ~70% of failed calls.
+TURN servers are configured directly here
+— no backend endpoint needed. The free
+Metered Open Relay credentials are public
+by design (anyone can look them up), so
+keeping them in the frontend is fine.
 
-FIX 2 — ICE CANDIDATE QUEUING (the silent
-dropper that killed the remaining calls)
-addIceCandidate() is only valid AFTER
-setRemoteDescription() has been called.
-On fast connections, remote ICE candidates
-arrive via socket BEFORE the offer/answer
-round-trip completes. Every premature
-addIceCandidate() call throws and silently
-drops that candidate. With TURN, relay
-candidates are the last resort — if they
-get dropped, no connection even with TURN
-configured. Fix: pendingCandidates[] buffers
-any candidate that arrives early, and
-drainPendingCandidates() applies them all
-immediately after setRemoteDescription.
+Two bugs fixed vs the original:
+1. TURN servers added (STUN-only failed on
+   Kenyan mobile/CGNat networks)
+2. ICE candidate queue — candidates that
+   arrive before setRemoteDescription are
+   buffered and applied afterward instead
+   of being silently dropped
 ========================================
 */
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+/* ── ICE configuration ───────────────────
+   4 TURN entries across different ports
+   and transports ensure we get through
+   most firewalls. The relay candidate in
+   Stage 7 of the diagnostic should now
+   show green.
+─────────────────────────────────────── */
+const ICE_CONFIG = {
+  iceServers: [
+    /* STUN — fast candidate discovery */
+    { urls: "stun:stun.l.google.com:19302"  },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:openrelay.metered.ca:80"  },
 
-/* ─── helpers ─────────────────────────── */
-const formatDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    /* TURN UDP port 80 */
+    {
+      urls:       "turn:openrelay.metered.ca:80",
+      username:   "openrelayproject",
+      credential: "openrelayproject",
+    },
+    /* TURN UDP port 443 */
+    {
+      urls:       "turn:openrelay.metered.ca:443",
+      username:   "openrelayproject",
+      credential: "openrelayproject",
+    },
+    /* TURN TCP port 443 — works when UDP is blocked */
+    {
+      urls:       "turn:openrelay.metered.ca:443?transport=tcp",
+      username:   "openrelayproject",
+      credential: "openrelayproject",
+    },
+    /* TURNS (TLS) — last resort for strict networks */
+    {
+      urls:       "turns:openrelay.metered.ca:443?transport=tcp",
+      username:   "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+};
 
-function Avatar({ name, size = 72 }) {
-  const initials = (name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+/* ── helpers ─────────────────────────── */
+const fmt = (s) =>
+  `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+function Avatar({ name, size = 90 }) {
+  const initials = (name || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: "rgba(0,168,107,0.15)", border: "2px solid rgba(0,168,107,0.35)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.33, fontWeight: 800, color: "#00A86B", flexShrink: 0,
-      fontFamily: "inherit",
-    }}>
+    <div
+      style={{
+        width: size, height: size, borderRadius: "50%",
+        background: "rgba(0,168,107,0.15)",
+        border: "2px solid rgba(0,168,107,0.4)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: size * 0.33, fontWeight: 800,
+        color: "#00A86B", fontFamily: "inherit", flexShrink: 0,
+      }}
+    >
       {initials}
     </div>
   );
 }
 
-function CtrlBtn({ onClick, active, danger, label, children }) {
+function CtrlBtn({ onClick, active, danger, label, disabled, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
       <motion.button
-        whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+        whileHover={{ scale: disabled ? 1 : 1.08 }}
+        whileTap={{ scale: disabled ? 1 : 0.93 }}
         onClick={onClick}
+        disabled={disabled}
         title={label}
         style={{
-          width: 52, height: 52, borderRadius: "50%", border: "none",
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          width: 54, height: 54, borderRadius: "50%",
+          border: "none", cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
           background: danger
             ? "rgba(239,68,68,0.85)"
             : active
-              ? "rgba(255,255,255,0.25)"
-              : "rgba(255,255,255,0.1)",
+              ? "rgba(255,255,255,0.28)"
+              : "rgba(255,255,255,0.12)",
+          opacity: disabled ? 0.4 : 1,
         }}
       >
         {children}
       </motion.button>
-      {label && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>{label}</div>}
+      {label && (
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>
+          {label}
+        </div>
+      )}
     </div>
   );
 }
 
-export default function CallWindow({ consultationId, callType, isIncoming, offer, callerName, onEnd }) {
+export default function CallWindow({
+  consultationId,
+  callType,
+  isIncoming,
+  offer,
+  callerName,
+  onEnd,
+}) {
+  const pcRef            = useRef(null);
+  const localStreamRef   = useRef(null);
+  const localVideoRef    = useRef(null);
+  const remoteVideoRef   = useRef(null);
+  const remoteDescSet    = useRef(false);
+  const pendingICE       = useRef([]);   /* queue for early ICE candidates */
 
-  const pcRef               = useRef(null);
-  const localStreamRef      = useRef(null);
-  const localVideoRef       = useRef(null);
-  const remoteVideoRef      = useRef(null);
-  const remoteDescSetRef    = useRef(false);
-  const pendingCandidates   = useRef([]);   /* FIX 2 — queue for early ICE candidates */
-
-  const [callStatus,  setCallStatus]  = useState("connecting");
-  const [isMuted,     setIsMuted]     = useState(false);
-  const [isCamOff,    setIsCamOff]    = useState(false);
-  const [isPiP,       setIsPiP]       = useState(false);
-  const [duration,    setDuration]    = useState(0);
-  const [iceState,    setIceState]    = useState("new"); /* shown in UI for easy debugging */
+  const [callStatus, setCallStatus] = useState("connecting");
+  const [isMuted,    setIsMuted]    = useState(false);
+  const [isCamOff,   setIsCamOff]   = useState(false);
+  const [isPiP,      setIsPiP]      = useState(false);
+  const [duration,   setDuration]   = useState(0);
+  const [iceState,   setIceState]   = useState("new");
 
   const isVideo = callType === "video";
   const user    = JSON.parse(localStorage.getItem("user") || "{}");
 
-  /* ══════════════════════════════════════
-     DURATION TIMER
-  ══════════════════════════════════════ */
+  /* ── duration timer ── */
   useEffect(() => {
     if (callStatus !== "active") return;
     const t = setInterval(() => setDuration((d) => d + 1), 1000);
     return () => clearInterval(t);
   }, [callStatus]);
 
-  /* ══════════════════════════════════════
-     CLEANUP
-  ══════════════════════════════════════ */
+  /* ── cleanup ── */
   const cleanup = useCallback(() => {
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
-    remoteDescSetRef.current = false;
-    pendingCandidates.current = [];
+    pcRef.current?.close();
+    pcRef.current = null;
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current   = null;
+    remoteDescSet.current    = false;
+    pendingICE.current       = [];
   }, []);
 
-  /* ══════════════════════════════════════
-     FIX 2 — DRAIN QUEUED ICE CANDIDATES
-     Call this immediately after every
-     setRemoteDescription() call.
-  ══════════════════════════════════════ */
-  const drainPendingCandidates = useCallback(async () => {
-    const pc = pcRef.current;
-    if (!pc) return;
-
-    const queued = pendingCandidates.current.splice(0);
+  /* ── drain buffered ICE candidates ── */
+  const drainICE = useCallback(async () => {
+    const pc     = pcRef.current;
+    const queued = pendingICE.current.splice(0);
     for (const c of queued) {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(c));
-      } catch (err) {
-        console.warn("[ICE] Failed to add queued candidate:", err.message);
-      }
+      try { await pc.addIceCandidate(new RTCIceCandidate(c)); }
+      catch (e) { console.warn("[ICE] queued candidate failed:", e.message); }
     }
-
-    if (queued.length > 0) {
-      console.log(`[ICE] Drained ${queued.length} queued candidate(s)`);
-    }
+    if (queued.length) console.log(`[ICE] drained ${queued.length} queued candidate(s)`);
   }, []);
 
-  /* ══════════════════════════════════════
-     FIX 1 — FETCH ICE CONFIG (STUN+TURN)
-     Before creating any RTCPeerConnection,
-     get the server-provided ICE config so
-     TURN credentials are included.
-  ══════════════════════════════════════ */
-  const fetchIceConfig = async () => {
-    try {
-      const res = await fetch(`${API_URL}/calls/ice-config`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error(`ICE config fetch failed: ${res.status}`);
-      const data = await res.json();
-      console.log("[ICE] Config fetched:", data.iceServers?.length, "servers");
-      return data;
-    } catch (err) {
-      console.error("[ICE] Could not fetch config, falling back to STUN only:", err.message);
-      /* Fallback — STUN only. Calls will still work on simple NAT networks. */
-      return {
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-        ],
-      };
-    }
-  };
-
-  /* ══════════════════════════════════════
-     GET LOCAL MEDIA STREAM
-  ══════════════════════════════════════ */
+  /* ── get local media ── */
   const getStream = async () => {
     const constraints = isVideo
-      ? { video: { width: 1280, height: 720, facingMode: "user" }, audio: true }
+      ? { audio: true, video: { width: 1280, height: 720, facingMode: "user" } }
       : { audio: true, video: false };
-
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     localStreamRef.current = stream;
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-    }
-
-    console.log("[Media] Got local stream:", stream.getTracks().map((t) => t.kind).join(", "));
+    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
     return stream;
   };
 
-  /* ══════════════════════════════════════
-     BUILD RTCPeerConnection
-  ══════════════════════════════════════ */
-  const buildPC = async (iceConfig, stream) => {
-    const pc = new RTCPeerConnection(iceConfig);
+  /* ── build RTCPeerConnection ── */
+  const buildPC = useCallback((stream) => {
+    const pc = new RTCPeerConnection(ICE_CONFIG);
     pcRef.current = pc;
 
-    /* add local tracks */
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-    /* send ICE candidates to remote peer via signaling */
-    pc.onicecandidate = (e) => {
-      if (!e.candidate) return;
-      console.log("[ICE] Sending candidate:", e.candidate.type);
-      socket.emit("ice-candidate", { consultationId, candidate: e.candidate });
+    pc.onicecandidate = ({ candidate }) => {
+      if (!candidate) return;
+      console.log("[ICE] sending", candidate.type);
+      socket.emit("ice-candidate", { consultationId, candidate });
     };
 
-    /* log ICE connection progress — visible in browser console for debugging */
     pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
-      setIceState(state);
-      console.log("[ICE] Connection state:", state);
-      if (state === "connected" || state === "completed") {
-        setCallStatus("active");
-      }
-      if (state === "failed" || state === "disconnected" || state === "closed") {
-        console.error("[ICE] Connection failed:", state);
-        setCallStatus("error");
-      }
+      const s = pc.iceConnectionState;
+      setIceState(s);
+      console.log("[ICE] state:", s);
+      if (s === "connected" || s === "completed") setCallStatus("active");
+      if (s === "failed")                         setCallStatus("error");
     };
 
-    /* receive remote media */
-    pc.ontrack = (e) => {
-      console.log("[Media] Got remote track:", e.track.kind);
-      if (remoteVideoRef.current && e.streams[0]) {
-        remoteVideoRef.current.srcObject = e.streams[0];
-      }
-    };
-
-    /* overall connection state (more reliable than iceConnectionState) */
     pc.onconnectionstatechange = () => {
-      const state = pc.connectionState;
-      console.log("[WebRTC] Connection state:", state);
-      if (state === "connected") setCallStatus("active");
-      if (["disconnected", "failed", "closed"].includes(state)) setCallStatus("error");
+      const s = pc.connectionState;
+      console.log("[WebRTC] state:", s);
+      if (s === "connected")                           setCallStatus("active");
+      if (["failed","disconnected","closed"].includes(s)) setCallStatus("error");
+    };
+
+    pc.ontrack = ({ streams }) => {
+      console.log("[Media] remote track received");
+      if (remoteVideoRef.current && streams[0]) {
+        remoteVideoRef.current.srcObject = streams[0];
+      }
     };
 
     return pc;
-  };
+  }, [consultationId]);
 
-  /* ══════════════════════════════════════
-     INITIATE (caller side)
-  ══════════════════════════════════════ */
-  const initiateCall = async () => {
+  /* ── INITIATE (caller) ── */
+  const initiateCall = useCallback(async () => {
     try {
-      console.log("[Call] Initiating", callType, "call on consultation", consultationId);
-      const [iceConfig, stream] = await Promise.all([fetchIceConfig(), getStream()]);
-      const pc = await buildPC(iceConfig, stream);
+      const stream = await getStream();
+      const pc     = buildPC(stream);
 
-      const sdpOffer = await pc.createOffer();
-      await pc.setLocalDescription(sdpOffer);
-      console.log("[SDP] Offer created and set as local description");
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
       socket.emit("call-user", {
         consultationId,
@@ -271,155 +244,110 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
         callerName: user?.name,
         callerId:   user?._id,
       });
-
-      console.log("[Call] Waiting for answer…");
+      console.log("[Call] offer sent, waiting for answer…");
     } catch (err) {
-      console.error("[Call] initiateCall failed:", err);
+      console.error("[Call] initiateCall error:", err);
       setCallStatus("error");
     }
-  };
+  }, [buildPC, consultationId, callType, user]);
 
-  /* ══════════════════════════════════════
-     ACCEPT (callee side)
-  ══════════════════════════════════════ */
+  /* ── ACCEPT (callee) ── */
   const acceptCall = useCallback(async () => {
     try {
-      console.log("[Call] Accepting", callType, "call");
-      const [iceConfig, stream] = await Promise.all([fetchIceConfig(), getStream()]);
-      const pc = await buildPC(iceConfig, stream);
+      const stream = await getStream();
+      const pc     = buildPC(stream);
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      remoteDescSetRef.current = true;
-      console.log("[SDP] Remote description (offer) set");
-
-      /* FIX 2 — drain any candidates that arrived before the offer was set */
-      await drainPendingCandidates();
+      remoteDescSet.current = true;
+      await drainICE();
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      console.log("[SDP] Answer created and set as local description");
 
       socket.emit("call-accepted", {
         consultationId,
         answer: pc.localDescription,
       });
-
+      console.log("[Call] answer sent");
     } catch (err) {
-      console.error("[Call] acceptCall failed:", err);
+      console.error("[Call] acceptCall error:", err);
       setCallStatus("error");
     }
-  }, [offer, consultationId, callType, drainPendingCandidates]);
+  }, [buildPC, offer, consultationId, drainICE]);
 
-  /* ══════════════════════════════════════
-     END CALL
-  ══════════════════════════════════════ */
+  /* ── end call ── */
   const endCall = useCallback(() => {
     socket.emit("call-ended", { consultationId });
     cleanup();
     onEnd?.();
   }, [consultationId, cleanup, onEnd]);
 
-  /* ══════════════════════════════════════
-     AUTO-START
-  ══════════════════════════════════════ */
+  /* ── auto-start ── */
   useEffect(() => {
     if (isIncoming) acceptCall();
-    else initiateCall();
+    else            initiateCall();
   }, []); // eslint-disable-line
 
-  /* ══════════════════════════════════════
-     FIX 2 — RECEIVE ICE CANDIDATES
-     Queue any that arrive before remote
-     description is set; apply immediately
-     after if the remote description is
-     already in place.
-  ══════════════════════════════════════ */
+  /* ── socket listeners ── */
   useEffect(() => {
-    const handleCandidate = async ({ candidate }) => {
-      if (!candidate) return;
-      console.log("[ICE] Received candidate type:", candidate.type || "unknown");
-
-      if (!remoteDescSetRef.current) {
-        console.log("[ICE] Remote desc not set yet — queuing candidate");
-        pendingCandidates.current.push(candidate);
-        return;
-      }
-
-      const pc = pcRef.current;
-      if (!pc) return;
-
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log("[ICE] Candidate added successfully");
-      } catch (err) {
-        console.warn("[ICE] addIceCandidate error:", err.message);
-      }
-    };
-
-    const handleCallAccepted = async ({ answer }) => {
+    const onAccepted = async ({ answer }) => {
       const pc = pcRef.current;
       if (!pc) return;
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        remoteDescSetRef.current = true;
-        console.log("[SDP] Remote description (answer) set");
-
-        /* FIX 2 — drain any candidates that arrived before the answer did */
-        await drainPendingCandidates();
+        remoteDescSet.current = true;
+        console.log("[SDP] remote answer set");
+        await drainICE();
       } catch (err) {
         console.error("[SDP] setRemoteDescription(answer) failed:", err);
         setCallStatus("error");
       }
     };
 
-    const handleCallRejected = () => {
-      setCallStatus("rejected");
-      cleanup();
+    const onCandidate = async ({ candidate }) => {
+      if (!candidate) return;
+      console.log("[ICE] received", candidate.type || "candidate");
+
+      if (!remoteDescSet.current || !pcRef.current) {
+        pendingICE.current.push(candidate);
+        return;
+      }
+      try {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("[ICE] addIceCandidate failed:", err.message);
+      }
     };
 
-    const handleCallEnded = () => {
-      setCallStatus("ended");
-      cleanup();
-    };
-
-    socket.on("call-accepted",  handleCallAccepted);
-    socket.on("call-rejected",  handleCallRejected);
-    socket.on("call-ended",     handleCallEnded);
-    socket.on("ice-candidate",  handleCandidate);
+    socket.on("call-accepted",  onAccepted);
+    socket.on("call-rejected",  () => { setCallStatus("rejected"); cleanup(); });
+    socket.on("call-ended",     () => { setCallStatus("ended");    cleanup(); });
+    socket.on("ice-candidate",  onCandidate);
 
     return () => {
-      socket.off("call-accepted",  handleCallAccepted);
-      socket.off("call-rejected",  handleCallRejected);
-      socket.off("call-ended",     handleCallEnded);
-      socket.off("ice-candidate",  handleCandidate);
+      socket.off("call-accepted");
+      socket.off("call-rejected");
+      socket.off("call-ended");
+      socket.off("ice-candidate");
       cleanup();
     };
-  }, [cleanup, drainPendingCandidates]);
+  }, [cleanup, drainICE]);
 
-  /* ══════════════════════════════════════
-     MUTE / CAMERA TOGGLES
-  ══════════════════════════════════════ */
+  /* ── toggles ── */
   const toggleMute = () => {
-    const stream = localStreamRef.current;
-    if (!stream) return;
-    stream.getAudioTracks().forEach((t) => {
-      t.enabled = isMuted;
-    });
+    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = isMuted; });
     setIsMuted((m) => !m);
   };
-
   const toggleCamera = () => {
-    const stream = localStreamRef.current;
-    if (!stream) return;
-    stream.getVideoTracks().forEach((t) => {
-      t.enabled = isCamOff;
-    });
+    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = isCamOff; });
     setIsCamOff((c) => !c);
   };
 
   /* ══════════════════════════════════════
      RENDER
   ══════════════════════════════════════ */
+  const isEnded = ["ended","rejected","error"].includes(callStatus);
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 10000,
@@ -428,32 +356,38 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
 
-      {/* ── REMOTE VIDEO (full-screen background) ── */}
+      {/* remote video — full-screen background */}
       {isVideo && (
         <video
           ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: callStatus === "active" ? 1 : 0.15 }}
+          autoPlay playsInline
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%", objectFit: "cover",
+            opacity: callStatus === "active" ? 1 : 0.15,
+            transition: "opacity 0.4s",
+          }}
         />
       )}
 
-      {/* ── DARK OVERLAY WHEN NOT YET CONNECTED ── */}
+      {/* dimming overlay while connecting */}
       {callStatus !== "active" && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(6,15,29,0.75)", zIndex: 1 }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "rgba(6,15,29,0.8)", zIndex: 1,
+        }} />
       )}
 
-      {/* ── LOCAL VIDEO PiP ── */}
+      {/* PiP local video */}
       {isVideo && (
         <motion.div
-          drag
-          dragMomentum={false}
+          drag dragMomentum={false}
           style={{
             position: "absolute",
             bottom: isPiP ? 90 : 24,
             right: 24,
-            width: isPiP ? 80 : 140,
-            height: isPiP ? 112 : 196,
+            width:  isPiP ? 80  : 140,
+            height: isPiP ? 110 : 196,
             borderRadius: 12,
             overflow: "hidden",
             border: "2px solid rgba(255,255,255,0.2)",
@@ -464,112 +398,123 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
         >
           <video
             ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
+            autoPlay playsInline muted
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
           <button
             onClick={() => setIsPiP((p) => !p)}
             style={{
               position: "absolute", top: 6, right: 6,
-              background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 6,
-              width: 24, height: 24, display: "flex", alignItems: "center",
-              justifyContent: "center", cursor: "pointer",
+              background: "rgba(0,0,0,0.5)", border: "none",
+              borderRadius: 6, width: 24, height: 24,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
             }}
           >
             {isPiP
-              ? <FiMaximize2 size={12} color="#fff"/>
-              : <FiMinimize2 size={12} color="#fff"/>}
+              ? <FiMaximize2 size={12} color="#fff" />
+              : <FiMinimize2 size={12} color="#fff" />}
           </button>
         </motion.div>
       )}
 
-      {/* ── CENTRE INFO ── */}
+      {/* centre info */}
       <div style={{
         position: "relative", zIndex: 2, flex: 1,
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        gap: 16,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: 18,
+        padding: "0 24px",
       }}>
-
         {callStatus !== "active" && (
           <>
             <motion.div
-              animate={callStatus === "connecting" ? { scale: [1, 1.08, 1] } : {}}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              animate={callStatus === "connecting" ? { scale: [1, 1.07, 1] } : {}}
+              transition={{ duration: 1.6, repeat: Infinity }}
             >
-              <Avatar name={isIncoming ? callerName : user?.name} size={100} />
+              <Avatar name={isIncoming ? callerName : user?.name} />
             </motion.div>
 
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>
-                {callStatus === "active"     ? (isIncoming ? callerName : "Connected")         :
-                 callStatus === "connecting" ? (isIncoming ? callerName : "Calling…")           :
-                 callStatus === "rejected"   ? "Call Declined"                                   :
-                 callStatus === "ended"      ? "Call Ended"                                      :
-                 callStatus === "error"      ? "Connection Failed"                               : ""}
+                {callStatus === "connecting" && (isIncoming ? callerName : "Calling…")}
+                {callStatus === "rejected"   && "Call Declined"}
+                {callStatus === "ended"      && "Call Ended"}
+                {callStatus === "error"      && "Connection Failed"}
               </div>
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
-                {callStatus === "connecting"
-                  ? (isIncoming ? "Connecting…" : "Waiting for the other person…")
-                  : ""}
-              </div>
+              {callStatus === "connecting" && (
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
+                  {isIncoming ? "Connecting…" : "Waiting for the other person…"}
+                </div>
+              )}
+              {callStatus === "error" && (
+                <div style={{ fontSize: 13, color: "rgba(248,113,113,0.7)", maxWidth: 300 }}>
+                  Could not establish a media connection.
+                  Check camera/mic permissions and try again.
+                </div>
+              )}
             </div>
+
+            {isEnded && (
+              <button
+                onClick={() => { cleanup(); onEnd?.(); }}
+                style={{
+                  marginTop: 8, padding: "11px 28px", borderRadius: 10,
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#fff", fontSize: 14, fontWeight: 700,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Close
+              </button>
+            )}
           </>
         )}
 
         {callStatus === "active" && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>
-              {isVideo ? "Video" : "Audio"} Call · {formatDuration(duration)}
-            </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>
+            {isVideo ? "Video" : "Audio"} Call · {fmt(duration)}
           </div>
         )}
-
-        {(callStatus === "rejected" || callStatus === "ended" || callStatus === "error") && (
-          <button
-            onClick={() => { cleanup(); onEnd?.(); }}
-            style={{
-              marginTop: 16, padding: "12px 32px", borderRadius: 10,
-              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            Close
-          </button>
-        )}
-
       </div>
 
-      {/* ── CONTROLS BAR ── */}
-      {callStatus !== "ended" && callStatus !== "rejected" && callStatus !== "error" && (
+      {/* controls bar */}
+      {!isEnded && (
         <div style={{
           position: "relative", zIndex: 2,
           display: "flex", justifyContent: "center", alignItems: "center",
-          gap: 20, paddingBottom: 44,
+          gap: 22, paddingBottom: 48,
         }}>
           <CtrlBtn onClick={toggleMute} active={isMuted} label={isMuted ? "Unmute" : "Mute"}>
-            {isMuted ? <FiMicOff size={20} color="#fff"/> : <FiMic size={20} color="#fff"/>}
+            {isMuted
+              ? <FiMicOff  size={20} color="#fff" />
+              : <FiMic     size={20} color="#fff" />}
           </CtrlBtn>
 
           {isVideo && (
             <CtrlBtn onClick={toggleCamera} active={isCamOff} label={isCamOff ? "Show" : "Hide"}>
-              {isCamOff ? <FiVideoOff size={20} color="#fff"/> : <FiVideo size={20} color="#fff"/>}
+              {isCamOff
+                ? <FiVideoOff size={20} color="#fff" />
+                : <FiVideo    size={20} color="#fff" />}
             </CtrlBtn>
           )}
 
           <CtrlBtn onClick={endCall} danger label="End">
-            <FiPhoneOff size={22} color="#fff"/>
+            <FiPhoneOff size={22} color="#fff" />
           </CtrlBtn>
         </div>
       )}
 
-      {/* ── ICE DEBUG CHIP — helps you see connection progress
-           (only visible in browser console; remove before final release) ── */}
+      {/* ICE state chip — shows live connection progress in top-left corner */}
       <div style={{
         position: "absolute", top: 12, left: 12, zIndex: 20,
-        background: "rgba(0,0,0,0.5)", borderRadius: 8,
-        padding: "4px 10px", fontSize: 11, color: "rgba(255,255,255,0.5)",
+        background: "rgba(0,0,0,0.45)", borderRadius: 8,
+        padding: "4px 10px", fontSize: 11,
+        color: iceState === "connected" || iceState === "completed"
+          ? "#4ADE80"
+          : iceState === "failed"
+            ? "#F87171"
+            : "rgba(255,255,255,0.4)",
         fontFamily: "monospace",
       }}>
         ICE: {iceState}
