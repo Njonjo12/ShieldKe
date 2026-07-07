@@ -37,10 +37,26 @@ const notificationRoutes =
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://shield-ke-2gpd.vercel.app",
+  "https://shield.co.ke",
+  "https://www.shield.co.ke",
+];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("Blocked Origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
@@ -176,17 +192,16 @@ INITIALIZE SOCKET.IO
 ======================*/
 
 const io = new Server(server, {
-
   cors: {
-
-    origin: "http://localhost:5173",
-
+    origin: [
+      "http://localhost:5173",
+      "https://shield-ke-2gpd.vercel.app",
+      "https://shield.co.ke",
+      "https://www.shield.co.ke",
+    ],
     methods: ["GET", "POST"],
-
-    credentials: true
-
-  }
-
+    credentials: true,
+  },
 });
 
 
