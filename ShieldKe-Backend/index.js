@@ -37,16 +37,18 @@ const notificationRoutes =
 
 const app = express();
 
+/* =========================
+   CORS
+========================= */
 const allowedOrigins = [
   "http://localhost:5173",
   "https://shield-ke-2gpd.vercel.app",
-  "https://shield.co.ke",
-  "https://www.shield.co.ke",
+  "https://shieldke.co.ke",
+  "https://www.shieldke.co.ke",
 ];
-
 app.use(
   cors({
-    origin(origin, callback) {
+    origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -61,82 +63,6 @@ app.use(
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 app.use("/api/admin", adminRoutes);
-
-/*
-========================================
-ICE CONFIGURATION ENDPOINT
-
-Returns STUN + TURN server config to the
-frontend when it's about to start a call.
-Keeping credentials on the backend (even
-though they're currently public/free ones)
-means you can upgrade to private Twilio or
-Metered credentials later by just changing
-env vars — no frontend redeploy needed.
-
-FREE TURN via Metered Open Relay is used
-by default. It works globally and handles
-symmetric NAT (the main reason STUN-only
-calls fail on Kenyan mobile networks).
-
-For a production upgrade:
-  1. Sign up at metered.ca (or Twilio)
-  2. Set TURN_USERNAME and TURN_CREDENTIAL
-     in your Render environment variables
-  3. The endpoint picks them up automatically
-
-The credentials expire after 24 hours
-(Twilio NTS pattern) — for now we use
-static free credentials so there's no
-TTL needed.
-========================================
-*/
-
-app.get("/api/calls/ice-config", (req, res) => {
-
-  const turnUsername   = process.env.TURN_USERNAME   || "openrelayproject";
-  const turnCredential = process.env.TURN_CREDENTIAL || "openrelayproject";
-
-  const iceServers = [
-
-    /* STUN — fast candidate discovery */
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:openrelay.metered.ca:80"  },
-
-    /* TURN UDP 80 — works through most firewalls */
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username:   turnUsername,
-      credential: turnCredential
-    },
-
-    /* TURN UDP 443 */
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username:   turnUsername,
-      credential: turnCredential
-    },
-
-    /* TURN TCP 443 — works even when UDP is blocked */
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username:   turnUsername,
-      credential: turnCredential
-    },
-
-    /* TURNS (TLS) — for networks that block plain TURN */
-    {
-      urls: "turns:openrelay.metered.ca:443?transport=tcp",
-      username:   turnUsername,
-      credential: turnCredential
-    }
-
-  ];
-
-  res.json({ iceServers });
-
-});
 
 
 
@@ -192,16 +118,25 @@ INITIALIZE SOCKET.IO
 ======================*/
 
 const io = new Server(server, {
+
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "https://shield-ke-2gpd.vercel.app",
-      "https://shield.co.ke",
-      "https://www.shield.co.ke",
-    ],
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "https://shield-ke-2gpd.vercel.app",
+        "https://shieldke.co.ke",
+        "https://www.shieldke.co.ke",
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
-    credentials: true,
-  },
+    credentials: true
+  }
+
 });
 
 
