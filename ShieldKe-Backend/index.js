@@ -43,8 +43,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://shield-ke-2gpd.vercel.app",
-  "https://shieldke.co.ke",
-  "https://www.shieldke.co.ke",
+  "https://shield.co.ke",
+  "https://www.shield.co.ke",
 ];
 app.use(
   cors({
@@ -124,8 +124,8 @@ const io = new Server(server, {
       const allowedOrigins = [
         "http://localhost:5173",
         "https://shield-ke-2gpd.vercel.app",
-        "https://shieldke.co.ke",
-        "https://www.shieldke.co.ke",
+        "https://shield.co.ke",
+        "https://www.shield.co.ke",
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
