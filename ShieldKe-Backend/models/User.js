@@ -2,24 +2,14 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
 
-  name: {
-    type: String,
-    required: true
-  },
+  name:  { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String },
 
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
-
-  phone: {
-    type: String
-  },
-
+  /* password not required for OAuth accounts */
   password: {
     type: String,
-    required: true
+    required: function () { return this.authProvider === "local"; }
   },
 
   role: {
@@ -28,91 +18,51 @@ const userSchema = new mongoose.Schema({
     required: true
   },
 
-  // LAWYER FIELDS
-
-  specialization: {
-    type: String
+  /* ── OAuth ── */
+  googleId:     { type: String, sparse: true },
+  linkedinId:   { type: String, sparse: true },
+  authProvider: {
+    type: String,
+    enum: ["local", "google", "linkedin"],
+    default: "local"
   },
 
-  yearsOfExperience: {
-    type: Number
-  },
+  /* ── Email verification ── */
+  isEmailVerified:          { type: Boolean, default: false },
+  emailVerificationToken:   { type: String  },
+  emailVerificationExpires: { type: Date    },
 
-  consultationFee: {
-    type: Number,
-    default: 0
-  },
+  /* ── Password reset ── */
+  resetPasswordToken:   { type: String },
+  resetPasswordExpires: { type: Date   },
 
-  lskNumber: {
-    type: String
-  },
+  /* ── Lawyer fields ── */
+  specialization:    { type: String },
+  yearsOfExperience: { type: Number },
+  consultationFee:   { type: Number, default: 0 },
+  lskNumber:         { type: String },
+  practiceAreas:     [{ type: String }],
+  location:          { type: String },
+  bio:               { type: String },
 
-  practiceAreas: [
-    {
-      type: String
-    }
-  ],
-
-  location: {
-    type: String
-  },
-
-  bio: {
-    type: String
-  },
-
-  // VERIFICATION
-
+  /* ── Admin/lawyer verification ── */
   verificationStatus: {
     type: String,
     enum: ["pending", "verified", "rejected"],
     default: "pending"
   },
+  isVerified:             { type: Boolean, default: false },
+  rejectionReason:        { type: String,  default: "" },
+  canReapply:             { type: Boolean, default: true },
+  verificationReviewedAt: { type: Date },
+  verificationReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-
-  rejectionReason: {
-    type: String,
-    default: ""
-  },
-
-  canReapply: {
-    type: Boolean,
-    default: true
-  },
-
-  verificationReviewedAt: {
-    type: Date
-  },
-
-  verificationReviewedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-
-  // DOCUMENTS
-
-  barCertificate: {
-    type: String
-  },
-
-  practicingCertificate: {
-    type: String
-  },
-
-  nationalIdDocument: {
-    type: String
-  },
-
-  profilePhoto: {
-    type: String
-  }
+  /* ── Documents & photo ── */
+  barCertificate:        { type: String },
+  practicingCertificate: { type: String },
+  nationalIdDocument:    { type: String },
+  profilePhoto:          { type: String }
 
 }, { timestamps: true });
 
-const User = mongoose.model("User", userSchema);
-
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);

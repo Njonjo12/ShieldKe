@@ -86,6 +86,7 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
 
   const isVideo = callType === "video";
   const user    = JSON.parse(localStorage.getItem("user") || "{}");
+  
 
   useEffect(() => {
     if (callStatus !== "active") return;

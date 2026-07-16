@@ -34,6 +34,11 @@ import AdvocateAgreement from "./pages/AdvocateAgreement";
 import GlobalCallManager from "./components/GlobalCallManager";
 import WelcomeOnboarding from "./components/WelcomeOnboarding";
 import CallDiagnostic from "./pages/CallDiagnostic";
+import VerifyEmail    from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword  from "./pages/ResetPassword";
+import OAuthCallback  from "./pages/OAuthCallback";
+
 
 
 export default function App() {
@@ -51,6 +56,7 @@ export default function App() {
       {/* ========================================
           PUBLIC ROUTES
       ======================================== */}
+      
 
       
 <Route path="/call-diagnostic" element={<CallDiagnostic />} />
@@ -69,6 +75,26 @@ export default function App() {
         path="/register"
         element={<Register />}
       />
+
+      <Route
+  path="/verify-email"
+  element={<VerifyEmail />}
+/>
+
+<Route
+  path="/forgot-password"
+  element={<ForgotPassword />}
+/>
+
+<Route
+  path="/reset-password"
+  element={<ResetPassword />}
+/>
+
+<Route
+  path="/oauth-callback"
+  element={<OAuthCallback />}
+/>
 
       <Route
         path="/terms-of-service"
@@ -226,6 +252,7 @@ export default function App() {
         path="*"
         element={<Navigate to="/" />}
       />
+      
 
     </Routes>
 
