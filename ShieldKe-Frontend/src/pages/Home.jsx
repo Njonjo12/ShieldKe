@@ -2,6 +2,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom";
 import { useRef, useState } from "react";
 import Footer from "../components/Footer";
+import LegalChatWidget from "../components/LegalChatWidget";
 import useIsMobile from "../hooks/useIsMobile";
 import {
   FiShield, FiCheckCircle, FiArrowRight, FiLock,
@@ -11,50 +12,50 @@ import {
 
 /* ── palette (all inline — no dependency on broken CSS vars) ── */
 const C = {
-  navy:       "#0B1F3A",
-  navyDark:   "#060F1D",
-  navyMid:    "#132843",
-  green:      "#006B3F",
+  navy: "#0B1F3A",
+  navyDark: "#060F1D",
+  navyMid: "#132843",
+  green: "#006B3F",
   greenLight: "#00A86B",
-  gold:       "#C9961A",
-  goldLight:  "#F0BE4A",
-  white:      "#FFFFFF",
-  offWhite:   "#F8FAFC",
-  muted:      "rgba(255,255,255,0.5)",
-  border:     "rgba(255,255,255,0.08)",
+  gold: "#C9961A",
+  goldLight: "#F0BE4A",
+  white: "#FFFFFF",
+  offWhite: "#F8FAFC",
+  muted: "rgba(255,255,255,0.5)",
+  border: "rgba(255,255,255,0.08)",
 };
 
 /* ── mock lawyer cards shown in the hero visual ── */
 const LAWYERS = [
-  { name: "Wanjiku A.",    area: "Family Law",       exp: "12 yrs", rating: 4.9, initials: "WA", color: "#3B82F6" },
-  { name: "Otieno J.",     area: "Corporate Law",    exp: "9 yrs",  rating: 4.8, initials: "OJ", color: "#8B5CF6" },
-  { name: "Mwangi G.",     area: "Criminal Defence", exp: "15 yrs", rating: 4.9, initials: "MG", color: "#10B981" },
-  { name: "Kamau P.",      area: "Property Law",     exp: "7 yrs",  rating: 4.7, initials: "KP", color: "#F59E0B" },
-  { name: "Njoroge S.",    area: "Employment Law",   exp: "11 yrs", rating: 4.8, initials: "NS", color: "#EF4444" },
-  { name: "Achieng F.",    area: "Immigration",      exp: "6 yrs",  rating: 4.6, initials: "AF", color: "#06B6D4" },
+  { name: "Wanjiku A.", area: "Family Law", exp: "12 yrs", rating: 4.9, initials: "WA", color: "#3B82F6" },
+  { name: "Otieno J.", area: "Corporate Law", exp: "9 yrs", rating: 4.8, initials: "OJ", color: "#8B5CF6" },
+  { name: "Mwangi G.", area: "Criminal Defence", exp: "15 yrs", rating: 4.9, initials: "MG", color: "#10B981" },
+  { name: "Kamau P.", area: "Property Law", exp: "7 yrs", rating: 4.7, initials: "KP", color: "#F59E0B" },
+  { name: "Njoroge S.", area: "Employment Law", exp: "11 yrs", rating: 4.8, initials: "NS", color: "#EF4444" },
+  { name: "Achieng F.", area: "Immigration", exp: "6 yrs", rating: 4.6, initials: "AF", color: "#06B6D4" },
 ];
 
 const STEPS = [
-  { n: "01", icon: <FiUsers size={22}/>,       title: "Create Account",       body: "Sign up as a client in under 2 minutes. No paperwork, no queues." },
+  { n: "01", icon: <FiUsers size={22}/>, title: "Create Account", body: "Sign up as a client in under 2 minutes. No paperwork, no queues." },
   { n: "02", icon: <FiCheckCircle size={22}/>, title: "Find a Verified Lawyer", body: "Browse LSK-registered advocates filtered by area, location and fee." },
-  { n: "03", icon: <FiMessageSquare size={22}/>,title: "Get Legal Help",       body: "Chat securely, share documents and get the advice you need — fast." },
+  { n: "03", icon: <FiMessageSquare size={22}/>,title: "Get Legal Help", body: "Chat securely, share documents and get the advice you need — fast." },
 ];
 
 const TESTIMONIALS = [
   { name: "Brian K.", role: "Business Owner · Nairobi", quote: "I resolved a contract dispute in 3 days. Couldn't believe how fast it was.", stars: 5, initials: "BK", color: "#3B82F6" },
-  { name: "Mercy A.", role: "Landlord · Mombasa",       quote: "Found a property lawyer who sorted my tenant issue the same week.", stars: 5, initials: "MA", color: "#10B981" },
-  { name: "David M.", role: "Employee · Kisumu",        quote: "My wrongful termination case was handled professionally start to finish.", stars: 5, initials: "DM", color: "#F59E0B" },
+  { name: "Mercy A.", role: "Landlord · Mombasa", quote: "Found a property lawyer who sorted my tenant issue the same week.", stars: 5, initials: "MA", color: "#10B981" },
+  { name: "David M.", role: "Employee · Kisumu", quote: "My wrongful termination case was handled professionally start to finish.", stars: 5, initials: "DM", color: "#F59E0B" },
 ];
 
 const PRACTICE_AREAS_DATA = [
-  { area: "Family Law",       icon: <FiUsers size={22}/>,       desc: "Divorce, custody, matrimonial property",    color: "#3B82F6" },
-  { area: "Property Law",     icon: <FiMapPin size={22}/>,      desc: "Land transfers, title deeds, disputes",    color: "#10B981" },
-  { area: "Corporate Law",    icon: <FiBriefcase size={22}/>,   desc: "Business registration, contracts, M&A",    color: "#F59E0B" },
-  { area: "Criminal Defence", icon: <FiShield size={22}/>,      desc: "Bail, trial representation, appeals",      color: "#EF4444" },
-  { area: "Employment Law",   icon: <FiFileText size={22}/>,    desc: "Wrongful termination, contracts, COTU",    color: "#8B5CF6" },
-  { area: "Immigration",      icon: <FiAward size={22}/>,       desc: "Work permits, citizenship, visas",         color: "#06B6D4" },
-  { area: "Succession",       icon: <FiCheckCircle size={22}/>, desc: "Wills, probate, estate administration",   color: "#C9961A" },
-  { area: "Land Disputes",    icon: <FiMapPin size={22}/>,      desc: "Boundary disputes, adverse possession",    color: "#F43F5E" },
+  { area: "Family Law", icon: <FiUsers size={22}/>, desc: "Divorce, custody, matrimonial property", color: "#3B82F6" },
+  { area: "Property Law", icon: <FiMapPin size={22}/>, desc: "Land transfers, title deeds, disputes", color: "#10B981" },
+  { area: "Corporate Law", icon: <FiBriefcase size={22}/>, desc: "Business registration, contracts, M&A", color: "#F59E0B" },
+  { area: "Criminal Defence", icon: <FiShield size={22}/>, desc: "Bail, trial representation, appeals", color: "#EF4444" },
+  { area: "Employment Law", icon: <FiFileText size={22}/>, desc: "Wrongful termination, contracts, COTU", color: "#8B5CF6" },
+  { area: "Immigration", icon: <FiAward size={22}/>, desc: "Work permits, citizenship, visas", color: "#06B6D4" },
+  { area: "Succession", icon: <FiCheckCircle size={22}/>, desc: "Wills, probate, estate administration", color: "#C9961A" },
+  { area: "Land Disputes", icon: <FiMapPin size={22}/>, desc: "Boundary disputes, adverse possession", color: "#F43F5E" },
 ];
 
 /* ── tiny helpers ── */
@@ -77,13 +78,13 @@ export default function Home() {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const heroRef          = useRef(null);
-  const howItWorksRef    = useRef(null);
+  const heroRef = useRef(null);
+  const howItWorksRef = useRef(null);
   const practiceAreasRef = useRef(null);
-  const forLawyersRef    = useRef(null);
+  const forLawyersRef = useRef(null);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY    = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
 
   const NAV_HEIGHT = 66;
 
@@ -95,12 +96,12 @@ export default function Home() {
   };
 
   const navLinks = [
-    { label: "How it works",  ref: howItWorksRef },
+    { label: "How it works", ref: howItWorksRef },
     { label: "Practice Areas", ref: practiceAreasRef },
-    { label: "For Lawyers",   ref: forLawyersRef },
+    { label: "For Lawyers", ref: forLawyersRef },
   ];
 
-  const pagePad   = isMobile ? "20px" : "48px";
+  const pagePad = isMobile ? "20px" : "48px";
   const sectionPadV = isMobile ? "56px" : "100px";
 
   return (
@@ -110,7 +111,6 @@ export default function Home() {
           NAV
       ══════════════════════════════════════════════ */}
       <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, height: NAV_HEIGHT, display: "flex", alignItems: "center", justifyContent: "space-between", padding: `0 ${pagePad}`, background: "rgba(6,15,29,0.92)", backdropFilter: "blur(18px)", borderBottom: `1px solid ${C.border}` }}>
-
         {/* logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => navigate("/")}>
           <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg,${C.gold},${C.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -183,14 +183,12 @@ export default function Home() {
           HERO
       ══════════════════════════════════════════════ */}
       <section ref={heroRef} style={{ minHeight: isMobile ? "auto" : "100vh", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", alignItems: "center", padding: isMobile ? `${NAV_HEIGHT + 32}px 20px 48px` : "100px 48px 80px", gap: isMobile ? 40 : 60, position: "relative", overflow: "hidden" }}>
-
         {/* ambient blobs */}
         <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", background: `radial-gradient(circle, ${C.green}22 0%, transparent 70%)`, top: -160, left: -160, pointerEvents: "none" }} />
         <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, ${C.gold}14 0%, transparent 70%)`, bottom: -100, right: 160, pointerEvents: "none" }} />
 
         {/* LEFT */}
         <motion.div initial={{ opacity: 0, x: isMobile ? 0 : -40, y: isMobile ? 20 : 0 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.8, ease: [0.22,1,0.36,1] }} style={{ position: "relative", zIndex: 2 }}>
-
           {/* eyebrow */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
             style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, marginBottom: 28, flexWrap: "wrap" }}>
@@ -233,21 +231,19 @@ export default function Home() {
             style={{ display: "flex", gap: isMobile ? 16 : 28, flexWrap: "wrap" }}>
             {[
               { icon: <FiCheckCircle size={14} color={C.greenLight}/>, text: "All lawyers LSK-verified" },
-              { icon: <FiLock size={14} color={C.greenLight}/>,        text: "End-to-end encrypted" },
-              { icon: <FiClock size={14} color={C.greenLight}/>,       text: "Available 24 / 7" },
+              { icon: <FiLock size={14} color={C.greenLight}/>, text: "End-to-end encrypted" },
+              { icon: <FiClock size={14} color={C.greenLight}/>, text: "Available 24 / 7" },
             ].map((t) => (
               <div key={t.text} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
                 {t.icon} {t.text}
               </div>
             ))}
           </motion.div>
-
         </motion.div>
 
         {/* RIGHT — floating lawyer cards */}
         <motion.div style={{ y: isMobile ? 0 : heroY, position: "relative", zIndex: 2 }}
           initial={{ opacity: 0, x: isMobile ? 0 : 40, y: isMobile ? 20 : 0 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.9, delay: 0.3, ease: [0.22,1,0.36,1] }}>
-
           {/* heading chip */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Verified Advocates Online</div>
@@ -291,9 +287,7 @@ export default function Home() {
               Get Help Now
             </button>
           </div>
-
         </motion.div>
-
       </section>
 
       {/* ══════════════════════════════════════════════
@@ -302,10 +296,10 @@ export default function Home() {
       <div style={{ background: `linear-gradient(135deg,${C.green},${C.greenLight})`, padding: isMobile ? "24px 20px" : "28px 48px" }}>
         <div style={{ maxWidth: 1100, margin: "auto", display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: isMobile ? 20 : 16, textAlign: "center" }}>
           {[
-            { value: "47+",   label: "Verified Lawyers" },
-            { value: "500+",  label: "Consultations Handled" },
-            { value: "12",    label: "Practice Areas" },
-            { value: "4.8★",  label: "Average Rating" },
+            { value: "47+", label: "Verified Lawyers" },
+            { value: "500+", label: "Consultations Handled" },
+            { value: "12", label: "Practice Areas" },
+            { value: "4.8★", label: "Average Rating" },
           ].map((s) => (
             <div key={s.label}>
               <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 900, color: C.white, letterSpacing: "-0.03em" }}>{s.value}</div>
@@ -320,7 +314,6 @@ export default function Home() {
       ══════════════════════════════════════════════ */}
       <section ref={howItWorksRef} style={{ padding: `${sectionPadV} ${pagePad}`, background: C.navyDark, scrollMarginTop: NAV_HEIGHT }}>
         <div style={{ maxWidth: 1100, margin: "auto" }}>
-
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
             <Chip color={C.goldLight}>Simple Process</Chip>
@@ -338,20 +331,16 @@ export default function Home() {
                 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.15 }}
                 style={{ background: C.navyMid, border: `1px solid ${C.border}`, borderRadius: 20, padding: isMobile ? "26px 24px" : "34px 30px", position: "relative", overflow: "hidden" }}>
-
                 {/* number watermark */}
                 <div style={{ position: "absolute", top: -10, right: 16, fontSize: 80, fontWeight: 900, color: "rgba(255,255,255,0.03)", letterSpacing: "-0.05em", lineHeight: 1, userSelect: "none" }}>{s.n}</div>
-
                 <div style={{ width: 52, height: 52, borderRadius: 14, background: `${C.greenLight}18`, border: `1px solid ${C.greenLight}28`, display: "flex", alignItems: "center", justifyContent: "center", color: C.greenLight, marginBottom: 22 }}>
                   {s.icon}
                 </div>
                 <div style={{ fontSize: 19, fontWeight: 800, color: C.white, marginBottom: 10 }}>{s.title}</div>
                 <p style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", lineHeight: 1.8 }}>{s.body}</p>
-
               </motion.div>
             ))}
           </div>
-
         </div>
       </section>
 
@@ -360,7 +349,6 @@ export default function Home() {
       ══════════════════════════════════════════════ */}
       <section ref={practiceAreasRef} style={{ padding: `${isMobile ? "56px" : "90px"} ${pagePad}`, background: C.navy, scrollMarginTop: NAV_HEIGHT }}>
         <div style={{ maxWidth: 1100, margin: "auto" }}>
-
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             style={{ display: "flex", alignItems: isMobile ? "flex-start" : "flex-end", justifyContent: "space-between", marginBottom: isMobile ? 32 : 48, flexWrap: "wrap", gap: 16, flexDirection: isMobile ? "column" : "row" }}>
             <div>
@@ -391,7 +379,6 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
-
         </div>
       </section>
 
@@ -400,7 +387,6 @@ export default function Home() {
       ══════════════════════════════════════════════ */}
       <section style={{ padding: `${sectionPadV} ${pagePad}`, background: C.navyDark }}>
         <div style={{ maxWidth: 1100, margin: "auto" }}>
-
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             style={{ textAlign: "center", marginBottom: isMobile ? 36 : 56 }}>
             <Chip color={C.goldLight}>Client Stories</Chip>
@@ -415,13 +401,10 @@ export default function Home() {
                 initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.15 }}
                 style={{ background: C.navyMid, border: `1px solid ${C.border}`, borderRadius: 20, padding: isMobile ? "24px 22px" : "30px 28px" }}>
-
                 <Stars n={t.stars} />
-
                 <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.85, margin: "18px 0 24px", fontStyle: "italic" }}>
                   "{t.quote}"
                 </p>
-
                 <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: t.color + "22", border: `2px solid ${t.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: t.color, flexShrink: 0 }}>
                     {t.initials}
@@ -431,11 +414,9 @@ export default function Home() {
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.role}</div>
                   </div>
                 </div>
-
               </motion.div>
             ))}
           </div>
-
         </div>
       </section>
 
@@ -447,7 +428,6 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.97 }} whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }} transition={{ duration: 0.6 }}
           style={{ maxWidth: 860, margin: "auto", textAlign: "center", background: `linear-gradient(135deg, ${C.navyMid}, ${C.green}22)`, border: `1px solid ${C.greenLight}20`, borderRadius: 28, padding: isMobile ? "44px 26px" : "64px 48px", position: "relative", overflow: "hidden" }}>
-
           {/* decoration rings */}
           <div style={{ position: "absolute", width: 320, height: 320, borderRadius: "50%", border: `1px solid ${C.greenLight}10`, top: -120, right: -80, pointerEvents: "none" }} />
           <div style={{ position: "absolute", width: 220, height: 220, borderRadius: "50%", border: `1px solid ${C.gold}10`, bottom: -80, left: -60, pointerEvents: "none" }} />
@@ -473,7 +453,6 @@ export default function Home() {
               </button>
             </div>
           </div>
-
         </motion.div>
       </section>
 
@@ -496,6 +475,8 @@ export default function Home() {
 
       <Footer />
 
+      {/* Sheria — floating AI legal assistant, available pre-login */}
+      <LegalChatWidget />
     </div>
   );
 }

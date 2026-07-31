@@ -8,7 +8,8 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
-
+const aiRoutes = require("./routes/aiRoutes");
+   
 
 /* =========================
    ROUTE IMPORTS
@@ -93,6 +94,7 @@ app.use("/api/consultations", consultationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/lawyers", lawyerRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/ai", aiRoutes);
 
 
 
