@@ -20,6 +20,8 @@ const consultationRoutes = require("./routes/consultationRoutes");
 
 const messageRoutes = require("./routes/messageRoutes")
 const lawyerRoutes = require("./routes/lawyerRoutes");
+const userRoutes = require("./routes/userRoutes");
+
 
 const notificationRoutes =
   require("./routes/notificationRoutes");
@@ -27,11 +29,7 @@ const notificationRoutes =
   require("./routes/adminRoutes");
 
 
-
-
-
-
-/* =========================
+  /* =========================
    EXPRESS APP
 ========================= */
 
@@ -64,9 +62,7 @@ app.use(
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 app.use("/api/admin", adminRoutes);
-
-
-
+app.use("/api/users", userRoutes);
 
 
 /* =========================
@@ -97,8 +93,6 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
 
 
-
-
 /* =========================
    HEALTH CHECK ROUTE
 ========================= */
@@ -114,7 +108,7 @@ app.get("/", (req, res) => {
 
 const server = http.createServer(app);
 
-/*=========================
+
 /*=========================
 INITIALIZE SOCKET.IO
 ======================*/
@@ -196,7 +190,7 @@ io.on("connection", (socket) => {
   socket.on("call-ended", ({ consultationId }) => {
     socket.to(consultationId).emit("call-ended");
   });
-
+ 
   /* ──────────────────────────────────────────
      ICE CANDIDATES: WebRTC NAT traversal relay
      (must relay every candidate as it arrives)

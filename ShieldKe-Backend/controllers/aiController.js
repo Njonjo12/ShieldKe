@@ -3,6 +3,11 @@
 // Handles general Kenyan legal FAQs AND runs a structured intake flow that
 // ends in a "Find a Lawyer" CTA, categorised so the frontend can route the
 // user to the right specialism.
+//
+// Constitutional questions are additionally grounded in real Article text
+// from the Constitution of Kenya (2010) dataset — see utils/legalReference.js.
+
+const { searchArticles } = require("../utils/legalReference");
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-6";
@@ -80,6 +85,28 @@ function extractCta(text) {
   return { cleanText, cta: { category } };
 }
 
+// Builds the system prompt for this specific turn, appending grounded
+// Constitution excerpts if the user's message matches relevant Articles.
+function buildSystemPrompt(userMessage) {
+  const relevantArticles = searchArticles(userMessage, 3);
+
+  if (relevantArticles.length === 0) {
+    return SHERIA_SYSTEM_PROMPT;
+  }
+
+  const context = relevantArticles
+    .map(
+      (a) =>
+        `${a.canonicalRef} (${a.title}) — Chapter ${a.chapterNumber}${a.partTitle ? `, ${a.partTitle}` : ""}:\n${a.fullText}`
+    )
+    .join("\n\n");
+
+  return (
+    SHERIA_SYSTEM_PROMPT +
+    `\n\nThe following are relevant excerpts from the Constitution of Kenya (2010), retrieved for this specific question. Use them to ground your answer and cite the correct Article number(s) where relevant. Don't quote them verbatim at length — summarise in your own words and cite the Article number, the way a lawyer would reference a provision rather than reading it aloud:\n\n${context}`
+  );
+}
+
 async function chat(req, res) {
   try {
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
@@ -116,6 +143,12 @@ async function chat(req, res) {
       return res.status(500).json({ error: "AI assistant is not configured." });
     }
 
+    // ── Constitutional grounding ──
+    // Searches the cleaned Constitution dataset for articles relevant to
+    // what the user just said, and appends them to the system prompt for
+    // this turn only if anything relevant turns up.
+    const systemPromptForThisTurn = buildSystemPrompt(message);
+
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
@@ -126,7 +159,7 @@ async function chat(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 700,
-        system: SHERIA_SYSTEM_PROMPT,
+        system: systemPromptForThisTurn,
         messages,
       }),
     });
