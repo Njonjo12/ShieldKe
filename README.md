@@ -1,4 +1,4 @@
-# ShieldKe Backend
+# ShieldKe 
 
 Backend API for **ShieldKe**, a Kenyan legal-tech platform that connects clients with verified lawyers for consultations and real-time communication.
 
