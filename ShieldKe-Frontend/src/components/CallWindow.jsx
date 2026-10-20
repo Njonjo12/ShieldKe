@@ -10,23 +10,23 @@ const ICE_CONFIG = {
   iceServers: [
     { urls: "stun:stun.relay.metered.ca:80" },
     {
-      urls:       "turn:standard.relay.metered.ca:80",
-      username:   "874b43ab517f8dac22e9aa57",
+      urls: "turn:standard.relay.metered.ca:80",
+      username: "874b43ab517f8dac22e9aa57",
       credential: "ARRbELPLdkPLAb3A",
     },
     {
-      urls:       "turn:standard.relay.metered.ca:80?transport=tcp",
-      username:   "874b43ab517f8dac22e9aa57",
+      urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+      username: "874b43ab517f8dac22e9aa57",
       credential: "ARRbELPLdkPLAb3A",
     },
     {
-      urls:       "turn:standard.relay.metered.ca:443",
-      username:   "874b43ab517f8dac22e9aa57",
+      urls: "turn:standard.relay.metered.ca:443",
+      username: "874b43ab517f8dac22e9aa57",
       credential: "ARRbELPLdkPLAb3A",
     },
     {
-      urls:       "turns:standard.relay.metered.ca:443?transport=tcp",
-      username:   "874b43ab517f8dac22e9aa57",
+      urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+      username: "874b43ab517f8dac22e9aa57",
       credential: "ARRbELPLdkPLAb3A",
     },
   ],
@@ -69,24 +69,31 @@ function CtrlBtn({ onClick, active, danger, label, children }) {
 }
 
 export default function CallWindow({ consultationId, callType, isIncoming, offer, callerName, onEnd }) {
-
-  const pcRef          = useRef(null);
+  const pcRef = useRef(null);
   const localStreamRef = useRef(null);
-  const localVideoRef  = useRef(null);
+  const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const remoteDescSet  = useRef(false);
-  const pendingICE     = useRef([]);
+  const remoteDescSet = useRef(false);
+  const pendingICE = useRef([]);        // remote candidates that arrived before remote description was set
+
+  /* ── FIX: caller-side hold-and-flush for LOCAL candidates ──
+     The callee's CallWindow (and its "ice-candidate" listener) doesn't exist
+     until they tap Accept. Candidates the caller emits while the phone is still
+     ringing are relayed to nobody and lost. So the caller holds its candidates
+     and only sends them once the answer arrives (callee is mounted by then).
+     The callee can send immediately because the caller is already listening. */
+  const canSendICE = useRef(!!isIncoming);
+  const pendingLocalICE = useRef([]);
 
   const [callStatus, setCallStatus] = useState("connecting");
-  const [isMuted,    setIsMuted]    = useState(false);
-  const [isCamOff,   setIsCamOff]   = useState(false);
-  const [isPiP,      setIsPiP]      = useState(false);
-  const [duration,   setDuration]   = useState(0);
-  const [iceState,   setIceState]   = useState("new");
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCamOff, setIsCamOff] = useState(false);
+  const [isPiP, setIsPiP] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [iceState, setIceState] = useState("new");
 
   const isVideo = callType === "video";
-  const user    = JSON.parse(localStorage.getItem("user") || "{}");
-  
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
     if (callStatus !== "active") return;
@@ -99,12 +106,14 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
-    remoteDescSet.current  = false;
-    pendingICE.current     = [];
-  }, []);
+    remoteDescSet.current = false;
+    pendingICE.current = [];
+    pendingLocalICE.current = [];
+    canSendICE.current = !!isIncoming;
+  }, [isIncoming]);
 
   const drainICE = useCallback(async () => {
-    const pc     = pcRef.current;
+    const pc = pcRef.current;
     const queued = pendingICE.current.splice(0);
     for (const c of queued) {
       try { await pc.addIceCandidate(new RTCIceCandidate(c)); }
@@ -112,6 +121,16 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
     }
     if (queued.length) console.log("[ICE] drained", queued.length, "queued candidate(s)");
   }, []);
+
+  // Sends every held local candidate, then switches to send-immediately mode.
+  const flushLocalICE = useCallback(() => {
+    canSendICE.current = true;
+    const held = pendingLocalICE.current.splice(0);
+    held.forEach((candidate) => {
+      socket.emit("ice-candidate", { consultationId, candidate });
+    });
+    if (held.length) console.log("[ICE] flushed", held.length, "held local candidate(s)");
+  }, [consultationId]);
 
   const getStream = async () => {
     const constraints = isVideo
@@ -131,6 +150,11 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
 
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate) return;
+      if (!canSendICE.current) {
+        pendingLocalICE.current.push(candidate);
+        console.log("[ICE] holding", candidate.type, "until answer arrives");
+        return;
+      }
       console.log("[ICE] sending", candidate.type);
       socket.emit("ice-candidate", { consultationId, candidate });
     };
@@ -147,7 +171,7 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
       const s = pc.connectionState;
       console.log("[WebRTC] state:", s);
       if (s === "connected") setCallStatus("active");
-      if (["failed","disconnected","closed"].includes(s)) setCallStatus("error");
+      if (["failed", "disconnected", "closed"].includes(s)) setCallStatus("error");
     };
 
     pc.ontrack = ({ streams }) => {
@@ -163,14 +187,14 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
   const initiateCall = useCallback(async () => {
     try {
       const stream = await getStream();
-      const pc     = buildPC(stream);
-      const offer  = await pc.createOffer();
+      const pc = buildPC(stream);
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       socket.emit("call-user", {
         consultationId, callType,
-        offer:      pc.localDescription,
+        offer: pc.localDescription,
         callerName: user?.name,
-        callerId:   user?._id,
+        callerId: user?._id,
       });
       console.log("[Call] offer sent");
     } catch (err) {
@@ -182,7 +206,7 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
   const acceptCall = useCallback(async () => {
     try {
       const stream = await getStream();
-      const pc     = buildPC(stream);
+      const pc = buildPC(stream);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       remoteDescSet.current = true;
       await drainICE();
@@ -204,7 +228,7 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
 
   useEffect(() => {
     if (isIncoming) acceptCall();
-    else            initiateCall();
+    else initiateCall();
   }, []); // eslint-disable-line
 
   useEffect(() => {
@@ -216,6 +240,8 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
         remoteDescSet.current = true;
         console.log("[SDP] remote answer set");
         await drainICE();
+        // Callee is now mounted and listening — safe to send our held candidates.
+        flushLocalICE();
       } catch (err) {
         console.error("[SDP] setRemoteDescription failed:", err);
         setCallStatus("error");
@@ -232,30 +258,36 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
       catch (err) { console.warn("[ICE] addIceCandidate failed:", err.message); }
     };
 
+    const onRejected = () => { setCallStatus("rejected"); cleanup(); };
+    const onEnded = () => { setCallStatus("ended"); cleanup(); };
+
     socket.on("call-accepted", onAccepted);
-    socket.on("call-rejected", () => { setCallStatus("rejected"); cleanup(); });
-    socket.on("call-ended",    () => { setCallStatus("ended");    cleanup(); });
+    socket.on("call-rejected", onRejected);
+    socket.on("call-ended", onEnded);
     socket.on("ice-candidate", onCandidate);
 
     return () => {
-      socket.off("call-accepted");
-      socket.off("call-rejected");
-      socket.off("call-ended");
-      socket.off("ice-candidate");
+      // Remove only THIS component's handlers, so other listeners
+      // (e.g. in GlobalCallManager) on the same events are left alone.
+      socket.off("call-accepted", onAccepted);
+      socket.off("call-rejected", onRejected);
+      socket.off("call-ended", onEnded);
+      socket.off("ice-candidate", onCandidate);
       cleanup();
     };
-  }, [cleanup, drainICE]);
+  }, [cleanup, drainICE, flushLocalICE]);
 
   const toggleMute = () => {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = isMuted; });
     setIsMuted((m) => !m);
   };
+
   const toggleCamera = () => {
     localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = isCamOff; });
     setIsCamOff((c) => !c);
   };
 
-  const isEnded = ["ended","rejected","error"].includes(callStatus);
+  const isEnded = ["ended", "rejected", "error"].includes(callStatus);
 
   return (
     <div style={{
@@ -263,7 +295,6 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
       display: "flex", flexDirection: "column",
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-
       {isVideo && (
         <video ref={remoteVideoRef} autoPlay playsInline style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
@@ -310,12 +341,13 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
             >
               <Avatar name={isIncoming ? callerName : user?.name} />
             </motion.div>
+
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>
                 {callStatus === "connecting" && (isIncoming ? callerName : "Calling...")}
-                {callStatus === "rejected"   && "Call Declined"}
-                {callStatus === "ended"      && "Call Ended"}
-                {callStatus === "error"      && "Connection Failed"}
+                {callStatus === "rejected" && "Call Declined"}
+                {callStatus === "ended" && "Call Ended"}
+                {callStatus === "error" && "Connection Failed"}
               </div>
               {callStatus === "connecting" && (
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
@@ -328,6 +360,7 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
                 </div>
               )}
             </div>
+
             {isEnded && (
               <button onClick={() => { cleanup(); onEnd?.(); }} style={{
                 marginTop: 8, padding: "11px 28px", borderRadius: 10,
@@ -338,9 +371,10 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
             )}
           </>
         )}
+
         {callStatus === "active" && (
           <div style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.55)" }}>
-            {isVideo ? "Video" : "Audio"} Call  {fmt(duration)}
+            {isVideo ? "Video" : "Audio"} Call {fmt(duration)}
           </div>
         )}
       </div>
@@ -354,11 +388,13 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
           <CtrlBtn onClick={toggleMute} active={isMuted} label={isMuted ? "Unmute" : "Mute"}>
             {isMuted ? <FiMicOff size={20} color="#fff" /> : <FiMic size={20} color="#fff" />}
           </CtrlBtn>
+
           {isVideo && (
             <CtrlBtn onClick={toggleCamera} active={isCamOff} label={isCamOff ? "Show" : "Hide"}>
               {isCamOff ? <FiVideoOff size={20} color="#fff" /> : <FiVideo size={20} color="#fff" />}
             </CtrlBtn>
           )}
+
           <CtrlBtn onClick={endCall} danger label="End">
             <FiPhoneOff size={22} color="#fff" />
           </CtrlBtn>
@@ -369,12 +405,11 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
         position: "absolute", top: 12, left: 12, zIndex: 20,
         background: "rgba(0,0,0,0.45)", borderRadius: 8,
         padding: "4px 10px", fontSize: 11, fontFamily: "monospace",
-        color: ["connected","completed"].includes(iceState) ? "#4ADE80"
-             : iceState === "failed" ? "#F87171" : "rgba(255,255,255,0.4)",
+        color: ["connected", "completed"].includes(iceState) ? "#4ADE80"
+          : iceState === "failed" ? "#F87171" : "rgba(255,255,255,0.4)",
       }}>
         ICE: {iceState}
       </div>
-
     </div>
   );
 }
