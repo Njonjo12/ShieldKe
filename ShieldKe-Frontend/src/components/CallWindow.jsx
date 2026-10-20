@@ -227,6 +227,13 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
   }, [consultationId, cleanup, onEnd]);
 
   useEffect(() => {
+    // FIX: make sure THIS socket is a member of the consultation room before any
+    // signaling. socket.to(room).emit() works from outside the room, so the caller
+    // could ring the callee without ever being able to hear the answer back.
+    // Same-socket events are processed in order, so this lands before "call-user".
+    socket.emit("joinRoom", consultationId);
+    console.log("[Call] joined room", consultationId);
+
     if (isIncoming) acceptCall();
     else initiateCall();
   }, []); // eslint-disable-line
@@ -261,10 +268,17 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
     const onRejected = () => { setCallStatus("rejected"); cleanup(); };
     const onEnded = () => { setCallStatus("ended"); cleanup(); };
 
+    // A reconnect gives the socket a new id and drops all its rooms, so rejoin.
+    const onReconnect = () => {
+      socket.emit("joinRoom", consultationId);
+      console.log("[Call] socket reconnected, rejoined room");
+    };
+
     socket.on("call-accepted", onAccepted);
     socket.on("call-rejected", onRejected);
     socket.on("call-ended", onEnded);
     socket.on("ice-candidate", onCandidate);
+    socket.on("connect", onReconnect);
 
     return () => {
       // Remove only THIS component's handlers, so other listeners
@@ -273,9 +287,10 @@ export default function CallWindow({ consultationId, callType, isIncoming, offer
       socket.off("call-rejected", onRejected);
       socket.off("call-ended", onEnded);
       socket.off("ice-candidate", onCandidate);
+      socket.off("connect", onReconnect);
       cleanup();
     };
-  }, [cleanup, drainICE, flushLocalICE]);
+  }, [cleanup, drainICE, flushLocalICE, consultationId]);
 
   const toggleMute = () => {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = isMuted; });
